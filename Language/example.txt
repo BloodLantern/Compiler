@@ -1,10 +1,2 @@
-﻿namespace hello{}
-
-namespace hello;
-
-namespace hello{const int hello=1;}
-
-class Type<T> : Supertype
-{
-    public Type() {}
-}
+﻿
+hello = 12;

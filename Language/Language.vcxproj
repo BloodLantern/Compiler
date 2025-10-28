@@ -102,6 +102,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpplatest</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -123,13 +124,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Language.cpp" />
+    <ClCompile Include="src\Language.cpp" />
+    <ClCompile Include="src\Lexer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="bnf_grammar.bnf" />
     <Content Include="c_grammar.bnf" />
     <Content Include="example.txt" />
     <Content Include="grammar.bnf" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Lexer.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
