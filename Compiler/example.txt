@@ -1,0 +1,13 @@
+
+// This is a single-line comment
+
+value = - 91 ;
+
+char = 'c';
+
+string = "hello";
+
+/* While this is a multi-line
+comment. */
+
+hello=12;
