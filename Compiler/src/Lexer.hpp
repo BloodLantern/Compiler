@@ -2,36 +2,14 @@
 
 #include "InputFile.hpp"
 #include "Position.hpp"
+#include "Token.hpp"
 #include "Utils.hpp"
-
-enum class TokenType : uint8_t
-{
-    Null,
-
-    EndOfFile,
-    Semicolon,
-
-    Identifier,
-
-    EqualsSign,
-
-    LiteralInteger,
-    LiteralCharacter,
-    LiteralString,
-};
-
-using TokenValue = std::variant<std::string, int, char>;
-
-struct Token
-{
-    TokenType type;
-    std::optional<TokenValue> value;
-};
 
 class Lexer
 {
 public:
     explicit Lexer(const InputFile& inputFile);
+    void HandleSimpleToken(TokenType type);
 
     void ParseNext();
     void ParseAll(std::vector<Token>& output);

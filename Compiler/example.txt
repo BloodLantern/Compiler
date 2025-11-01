@@ -3,9 +3,9 @@
 
 value = - 91 ;
 
-char = 'c';
+character = 'c';
 
-string = "hello";
+text = "hello";
 
 /* While this is a multi-line
 comment. */

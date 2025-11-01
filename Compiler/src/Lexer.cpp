@@ -10,7 +10,12 @@ Lexer::Lexer(const InputFile& inputFile)
 {
 }
 
-// TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl01.html
+void Lexer::HandleSimpleToken(const TokenType type)
+{
+    m_LastToken.value.reset();
+    m_LastToken.type = type;
+    ConsumeNextCharacter();
+}
 
 void Lexer::ParseNext()
 {
@@ -29,98 +34,96 @@ void Lexer::ParseNext()
         return;
     }
 
-    // Check for a comment
-    if (m_Character == '/')
+    switch (m_Character)
     {
-        const char nextCharacter = PeekCharacter(1);
+        case '=':
+            HandleSimpleToken(TokenType::OperatorEquals);
+            return;
 
-        // Single-line comment
-        if (nextCharacter == '/')
+        case '+':
+            HandleSimpleToken(TokenType::OperatorPlus);
+            return;
+
+        case '-':
+            HandleSimpleToken(TokenType::OperatorMinus);
+            return;
+
+        case '*':
+            HandleSimpleToken(TokenType::OperatorStar);
+            return;
+
+        case '/':
         {
-            SkipToNextLine();
-            return ParseNext();
+            // Check for a comment
+            const char nextCharacter = PeekCharacter(1);
+
+            // Single-line comment
+            if (nextCharacter == '/')
+            {
+                SkipToNextLine();
+                return ParseNext();
+            }
+
+            // Multi-line comment
+            if (nextCharacter == '*')
+            {
+                Skip(1);
+                SkipUntilAfter("*/");
+                return ParseNext();
+            }
+
+            // Single slash, interpret this as an operator
+            HandleSimpleToken(TokenType::OperatorSlash);
+            return;
         }
 
-        // Multi-line comment
-        if (nextCharacter == '*')
+        case ';':
+            HandleSimpleToken(TokenType::Semicolon);
+            return;
+
+        case '\'':
         {
-            Skip(1);
-            SkipUntilAfter("*/");
-            return ParseNext();
+            const char literalEndCharacter = PeekCharacter(2);
+            if (literalEndCharacter != '\'')
+            {
+                Skip(2);
+                RaiseError("Expected end of character literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
+            }
+
+            m_LastToken.value = PeekCharacter(1);
+            m_LastToken.type = TokenType::LiteralCharacter;
+            Skip(3);
+            return;
         }
 
-        RaiseError("Invalid character: '/'");
-    }
+        case '"':
+        {
+            ConsumeNextCharacter();
 
-    if (m_Character == '=')
-    {
-        m_LastToken.value.reset();
-        m_LastToken.type = TokenType::EqualsSign;
-        ConsumeNextCharacter();
-        return;
-    }
+            std::string identifier;
+            BuildString(identifier, [](const char c) { return c != '"' && c != EOF; });
 
-    if (m_Character == ';')
-    {
-        m_LastToken.value.reset();
-        m_LastToken.type = TokenType::Semicolon;
-        ConsumeNextCharacter();
-        return;
+            if (m_Character == EOF)
+                RaiseError("Expected end of character literal, got 'EOF'");
+
+            m_LastToken.value = identifier;
+            m_LastToken.type = TokenType::LiteralString;
+            ConsumeNextCharacter();
+            return;
+        }
+
+        default:
+            break;
     }
 
     // Check for a literal integer
-    if (m_Character == '-' || std::isdigit(m_Character))
+    if (std::isdigit(m_Character))
     {
-        bool negative = false;
-        if (m_Character == '-')
-        {
-            ConsumeNextCharacter();
-            SkipSpaces();
-            negative = true;
-        }
-
         std::string intString;
         BuildString(intString, [](const char c) -> bool { return std::isdigit(c); });
 
-        int value = static_cast<int>(std::strtol(intString.c_str(), nullptr, 10));
-        if (negative)
-            value = -value;
-
-        m_LastToken.value = value;
+        m_LastToken.value = static_cast<int>(std::strtol(intString.c_str(), nullptr, 10));
         m_LastToken.type = TokenType::LiteralInteger;
-        return;
-    }
-
-    // Check for a literal character
-    if (m_Character == '\'')
-    {
-        const char literalEndCharacter = PeekCharacter(2);
-        if (literalEndCharacter != '\'')
-        {
-            Skip(2);
-            RaiseError("Expected end of character literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
-        }
-
-        m_LastToken.value = PeekCharacter(1);
-        m_LastToken.type = TokenType::LiteralCharacter;
-        Skip(3);
-        return;
-    }
-
-    // Check for a literal string
-    if (m_Character == '"')
-    {
-        ConsumeNextCharacter();
-
-        std::string identifier;
-        BuildString(identifier, [](const char c) { return c != '"' && c != EOF; });
-
-        if (m_Character == EOF)
-            RaiseError("Expected end of character literal, got 'EOF'");
-
-        m_LastToken.value = identifier;
-        m_LastToken.type = TokenType::LiteralString;
-        ConsumeNextCharacter();
         return;
     }
 

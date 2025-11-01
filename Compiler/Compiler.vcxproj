@@ -143,6 +143,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\AbstractSyntaxTree.cpp" />
     <ClCompile Include="src\InputFile.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Lexer.cpp" />
@@ -156,6 +157,7 @@
     <Content Include="grammar.bnf" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\AbstractSyntaxTree.hpp" />
     <ClInclude Include="src\Attributes.hpp" />
     <ClInclude Include="src\CompilerSpecific.hpp" />
     <ClInclude Include="src\ErrorCodes.hpp" />
@@ -163,6 +165,7 @@
     <ClInclude Include="src\Lexer.hpp" />
     <ClInclude Include="src\Position.hpp" />
     <ClInclude Include="src\PrecompiledHeader.hpp" />
+    <ClInclude Include="src\Token.hpp" />
     <ClInclude Include="src\Utils.hpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
