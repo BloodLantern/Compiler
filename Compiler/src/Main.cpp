@@ -3,7 +3,7 @@
 #include "InputFile.hpp"
 #include "Lexer.hpp"
 
-// TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/LangImpl01.html
+// TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
 
 int main()
 {
