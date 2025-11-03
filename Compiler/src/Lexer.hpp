@@ -9,10 +9,12 @@ class Lexer
 {
 public:
     explicit Lexer(const InputFile& inputFile);
-    void HandleSimpleToken(TokenType type);
 
     void ParseNext();
     void ParseAll(std::vector<Token>& output);
+
+    GETTER_M(const Token&, LastToken)
+    GETTER_M(bool, Failure)
 
 private:
     const InputFile* m_InputFile;
@@ -22,6 +24,8 @@ private:
     Token m_LastToken{};
 
     char m_Character = '\0';
+
+    bool m_Failure = false;
 
     void ConsumeNextCharacter();
     void Skip(ptrdiff_t count);
@@ -34,26 +38,31 @@ private:
     void SkipUntilAfter(char c);
     void SkipToNextLine();
     void BuildString(std::string& output, const Utils::Predicate<char>& predicate);
+    ATTRIBUTE_NODISCARD
+    bool CheckString(std::string_view str) const;
+    void HandleSimpleToken(TokenType type, size_t strSize = 1);
 
     ATTRIBUTE_NODISCARD
     bool FinishedReading() const;
 
     template <typename... Args>
-    ATTRIBUTE_NORETURN
-    void RaiseError(const std::string& message, Args&&... args) const;
+    void RaiseError(const std::string& message, Args&&... args);
 };
 
-template <typename ... Args>
-void Lexer::RaiseError(const std::string& message, Args&&... args) const
+template <typename... Args>
+void Lexer::RaiseError(const std::string& message, Args&&... args)  // NOLINT(cppcoreguidelines-missing-std-forward)
 {
     std::println(
         std::cerr,
-        "{}({}, {}): Syntax error: {}",
+        "{}({}, {}): Fatal error: {}",
         m_InputFile->GetFilepath(),
         m_Position.line,
         m_Position.column,
-        std::vformat(message, std::make_format_args(std::forward<Args>(args)...))
+        std::vformat(message, std::make_format_args(args...))
     );
 
-    Utils::Exit(ErrorCodes::SyntaxError);  // NOLINT(concurrency-mt-unsafe)
+    m_LastToken.type = TokenType::None;
+    m_LastToken.value.reset();
+
+    m_Failure = true;
 }

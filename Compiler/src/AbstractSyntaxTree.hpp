@@ -24,6 +24,28 @@ namespace AbstractSyntaxTree
         NumberType m_Value;
     };
 
+    class String : public Expression
+    {
+    public:
+        explicit String(std::string value);
+
+        GETTER_M(const std::string&, Value)
+
+    private:
+        std::string m_Value;
+    };
+
+    class Character : public Expression
+    {
+    public:
+        explicit Character(char value);
+
+        GETTER_M(char, Value)
+
+    private:
+        char m_Value;
+    };
+
     class Variable : public Expression
     {
     public:

@@ -1,13 +1,23 @@
 
-// This is a single-line comment
+value = Func(Func(17), value);
 
-value = - 91 ;
+/*int value = -91;
 
-character = 'c';
+char character = 'c';
 
-text = "hello";
+string text = "hello";
 
-/* While this is a multi-line
-comment. */
+int hello = 12 + value;
 
-hello=12;
+int Add(int a, int b)
+{
+    return a + b;
+}
+
+void Func(out int i) { i = 1; }
+
+Func(out int i);
+
+hello = Add(hello, hello);
+
+hello <<= 2;*/

@@ -147,6 +147,7 @@
     <ClCompile Include="src\InputFile.cpp" />
     <ClCompile Include="src\Main.cpp" />
     <ClCompile Include="src\Lexer.cpp" />
+    <ClCompile Include="src\Parser.cpp" />
     <ClCompile Include="src\PrecompiledHeader.cpp" PrecompiledHeader="Create" />
     <ClCompile Include="src\Utils.cpp" />
   </ItemGroup>
@@ -163,6 +164,7 @@
     <ClInclude Include="src\ErrorCodes.hpp" />
     <ClInclude Include="src\InputFile.hpp" />
     <ClInclude Include="src\Lexer.hpp" />
+    <ClInclude Include="src\Parser.hpp" />
     <ClInclude Include="src\Position.hpp" />
     <ClInclude Include="src\PrecompiledHeader.hpp" />
     <ClInclude Include="src\Token.hpp" />

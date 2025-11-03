@@ -10,13 +10,6 @@ Lexer::Lexer(const InputFile& inputFile)
 {
 }
 
-void Lexer::HandleSimpleToken(const TokenType type)
-{
-    m_LastToken.value.reset();
-    m_LastToken.type = type;
-    ConsumeNextCharacter();
-}
-
 void Lexer::ParseNext()
 {
     if (m_Index < 0)
@@ -27,6 +20,9 @@ void Lexer::ParseNext()
 
     SkipSpaces();
 
+    m_LastToken.position = m_Position;
+    m_LastToken.inputFile = m_InputFile;
+
     if (FinishedReading())
     {
         m_LastToken.value.reset();
@@ -34,25 +30,12 @@ void Lexer::ParseNext()
         return;
     }
 
-    switch (m_Character)
+    for (const std::pair<std::string_view, TokenType>& token : SimpleTokenList)
     {
-        case '=':
-            HandleSimpleToken(TokenType::OperatorEquals);
-            return;
+        if (!CheckString(token.first))
+            continue;
 
-        case '+':
-            HandleSimpleToken(TokenType::OperatorPlus);
-            return;
-
-        case '-':
-            HandleSimpleToken(TokenType::OperatorMinus);
-            return;
-
-        case '*':
-            HandleSimpleToken(TokenType::OperatorStar);
-            return;
-
-        case '/':
+        if (token.second == TokenType::OperatorSlash)
         {
             // Check for a comment
             const char nextCharacter = PeekCharacter(1);
@@ -77,10 +60,12 @@ void Lexer::ParseNext()
             return;
         }
 
-        case ';':
-            HandleSimpleToken(TokenType::Semicolon);
-            return;
+        HandleSimpleToken(token.second, token.first.size());
+        return;
+    }
 
+    switch (m_Character)
+    {
         case '\'':
         {
             const char literalEndCharacter = PeekCharacter(2);
@@ -88,6 +73,7 @@ void Lexer::ParseNext()
             {
                 Skip(2);
                 RaiseError("Expected end of character literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
+                return;
             }
 
             m_LastToken.value = PeekCharacter(1);
@@ -104,7 +90,10 @@ void Lexer::ParseNext()
             BuildString(identifier, [](const char c) { return c != '"' && c != EOF; });
 
             if (m_Character == EOF)
+            {
                 RaiseError("Expected end of character literal, got 'EOF'");
+                return;
+            }
 
             m_LastToken.value = identifier;
             m_LastToken.type = TokenType::LiteralString;
@@ -127,17 +116,35 @@ void Lexer::ParseNext()
         return;
     }
 
+    // Check for a keyword
+    for (size_t i = 0; i < KeywordList.size(); i++)
+    {
+        const std::string_view keyword = KeywordList[i];
+        if (!CheckString(keyword))
+            continue;
+
+        const ptrdiff_t followingCharacter = static_cast<ptrdiff_t>(keyword.size());
+        if (std::isalnum(PeekCharacter(followingCharacter)))
+            continue;
+
+        m_LastToken.type = TokenType::Keyword;
+        m_LastToken.value = static_cast<Keyword>(i + 1);
+        Skip(followingCharacter);
+        return;
+    }
+
     // Check for an identifier
-    if (std::isalpha(m_Character))
+    if (m_Character == '_' || std::isalpha(m_Character))
     {
         std::string identifier;
-        BuildString(identifier, [](const char c) -> bool { return std::isalnum(c); });
+        BuildString(identifier, [](const char c) -> bool { return c == '_' || std::isalnum(c); });
 
         m_LastToken.value = std::move(identifier);
         m_LastToken.type = TokenType::Identifier;
         return;
     }
 
+    ATTRIBUTE_UNLIKELY
     RaiseError("Invalid character: " CHAR_FORMAT_ARGUMENT(0), m_Character);
 }
 
@@ -231,6 +238,18 @@ void Lexer::BuildString(std::string& output, const Utils::Predicate<char>& predi
         output += m_Character;
         ConsumeNextCharacter();
     }
+}
+
+bool Lexer::CheckString(const std::string_view str) const
+{
+    return m_InputFile->GetText().substr(m_Index).starts_with(str);
+}
+
+void Lexer::HandleSimpleToken(const TokenType type, const size_t strSize)
+{
+    m_LastToken.value.reset();
+    m_LastToken.type = type;
+    Skip(static_cast<ptrdiff_t>(strSize));
 }
 
 bool Lexer::FinishedReading() const
