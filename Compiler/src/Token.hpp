@@ -18,106 +18,109 @@ enum class TokenType : uint8_t
     CurlyBraceOpen,
     CurlyBraceClose,
 
-    OperatorAssign,
-
-    OperatorScopeResolution,
-
-    OperatorDot,
-    OperatorArrow,
-
-    OperatorWideArrow,
-
-    OperatorPlus,
-    OperatorMinus,
-    OperatorStar,
-    OperatorSlash,
-    OperatorPercent,
-
-    OperatorIncrement,
-    OperatorDecrement,
-
-    OperatorEquals,
-    OperatorNotEquals,
-    OperatorLess,
-    OperatorLessEquals,
-    OperatorGreater,
-    OperatorGreaterEquals,
-
-    OperatorLogicalAnd,
-    OperatorLogicalOr,
-    OperatorLogicalNot,
-
-    OperatorBinaryAnd,
-    OperatorBinaryOr,
-    OperatorBinaryXor,
-    OperatorBinaryNot,
-
-    OperatorBitshiftLeft,
-    OperatorBitshiftRight,
-
-    OperatorQuestionMark,
-    OperatorNullCoalescing,
-    OperatorColon,
-
-    OperatorPlusEquals,
-    OperatorMinusEquals,
-    OperatorStarEquals,
-    OperatorSlashEquals,
-    OperatorPercentEquals,
-    OperatorBinaryAndEquals,
-    OperatorBinaryOrEquals,
-    OperatorBinaryXorEquals,
-    OperatorBinaryNotEquals,
-    OperatorBitshiftLeftEquals,
-    OperatorBitshiftRightEquals,
-    OperatorNullCoalescingEquals,
-
     LiteralInteger,
     LiteralCharacter,
     LiteralString,
+
+    /// @brief If a token has the Operator type, it has a value that corresponds to an Operator enum entry.
+    Operator,
+
+    Equals,
+
+    DoubleColon,
+
+    Dot,
+    MinusGreaterThan,
+
+    EqualsGreaterThan,
+
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+
+    DoublePlus,
+    DoubleMinus,
+
+    DoubleEquals,
+    ExclamationMarkEquals,
+    LessThan,
+    LessThanEquals,
+    GreaterThan,
+    GreaterThanEquals,
+
+    DoubleAmpersand,
+    DoubleVerticalBar,
+    ExclamationMark,
+
+    Ampersand,
+    VerticalBar,
+    Caret,
+    Tilde,
+
+    DoubleLessThan,
+    DoubleGreaterThan,
+
+    QuestionMark,
+    DoubleQuestionMark,
+    Colon,
+
+    PlusEquals,
+    MinusEquals,
+    StarEquals,
+    SlashEquals,
+    PercentEquals,
+    AmpersandEquals,
+    VerticalBarEquals,
+    CaretEquals,
+    DoubleLessThanEquals,
+    DoubleGreaterThanEquals,
+    DoubleQuestionMarkEquals,
 };
 
-constexpr std::array<std::pair<std::string_view, TokenType>, 50> SimpleTokenList
+constexpr bool IsTokenOperator(TokenType tokenType);
+
+constexpr std::array SimpleTokenList
 {
-    std::make_pair("<<=", TokenType::OperatorBitshiftLeftEquals),
-    std::make_pair(">>=", TokenType::OperatorBitshiftRightEquals),
-    std::make_pair("??=", TokenType::OperatorNullCoalescingEquals),  // NOLINT(clang-diagnostic-trigraphs)
+    std::make_pair("<<=", TokenType::DoubleLessThanEquals),
+    std::make_pair(">>=", TokenType::DoubleGreaterThanEquals),
+    std::make_pair("??=", TokenType::DoubleQuestionMarkEquals),  // NOLINT(clang-diagnostic-trigraphs)
 
-    std::make_pair("++", TokenType::OperatorIncrement),
-    std::make_pair("--", TokenType::OperatorDecrement),
+    std::make_pair("++", TokenType::DoublePlus),
+    std::make_pair("--", TokenType::DoubleMinus),
 
-    std::make_pair("==", TokenType::OperatorEquals),
-    std::make_pair("!=", TokenType::OperatorNotEquals),
-    std::make_pair("<", TokenType::OperatorLess),
-    std::make_pair("<=", TokenType::OperatorLessEquals),
-    std::make_pair(">", TokenType::OperatorGreater),
-    std::make_pair(">=", TokenType::OperatorGreaterEquals),
+    std::make_pair("==", TokenType::DoubleEquals),
+    std::make_pair("!=", TokenType::ExclamationMarkEquals),
+    std::make_pair("<", TokenType::LessThan),
+    std::make_pair("<=", TokenType::LessThanEquals),
+    std::make_pair(">", TokenType::GreaterThan),
+    std::make_pair(">=", TokenType::GreaterThanEquals),
 
-    std::make_pair("&&", TokenType::OperatorLogicalAnd),
-    std::make_pair("||", TokenType::OperatorLogicalOr),
+    std::make_pair("&&", TokenType::DoubleAmpersand),
+    std::make_pair("||", TokenType::DoubleVerticalBar),
 
-    std::make_pair("<<", TokenType::OperatorBitshiftLeft),
-    std::make_pair(">>", TokenType::OperatorBitshiftRight),
+    std::make_pair("<<", TokenType::DoubleLessThan),
+    std::make_pair(">>", TokenType::DoubleGreaterThan),
 
-    std::make_pair("??", TokenType::OperatorNullCoalescing),
+    std::make_pair("??", TokenType::DoubleQuestionMark),
 
-    std::make_pair("+=", TokenType::OperatorPlusEquals),
-    std::make_pair("-=", TokenType::OperatorMinusEquals),
-    std::make_pair("*=", TokenType::OperatorStarEquals),
-    std::make_pair("/=", TokenType::OperatorSlashEquals),
-    std::make_pair("%=", TokenType::OperatorPercentEquals),
-    std::make_pair("&=", TokenType::OperatorBinaryAndEquals),
-    std::make_pair("|=", TokenType::OperatorBinaryOrEquals),
-    std::make_pair("^=", TokenType::OperatorBinaryXorEquals),
-    std::make_pair("~=", TokenType::OperatorBinaryNotEquals),
+    std::make_pair("+=", TokenType::PlusEquals),
+    std::make_pair("-=", TokenType::MinusEquals),
+    std::make_pair("*=", TokenType::StarEquals),
+    std::make_pair("/=", TokenType::SlashEquals),
+    std::make_pair("%=", TokenType::PercentEquals),
+    std::make_pair("&=", TokenType::AmpersandEquals),
+    std::make_pair("|=", TokenType::VerticalBarEquals),
+    std::make_pair("^=", TokenType::CaretEquals),
 
-    std::make_pair("::", TokenType::OperatorScopeResolution),
-    std::make_pair("->", TokenType::OperatorArrow),
-    std::make_pair("=>", TokenType::OperatorWideArrow),
+    std::make_pair("::", TokenType::DoubleColon),
+    std::make_pair("->", TokenType::MinusGreaterThan),
+    std::make_pair("=>", TokenType::EqualsGreaterThan),
 
-    std::make_pair(".", TokenType::OperatorDot),
+    std::make_pair(".", TokenType::Dot),
 
-    std::make_pair("!", TokenType::OperatorLogicalNot),
+    std::make_pair("!", TokenType::ExclamationMark),
 
     std::make_pair(";", TokenType::Semicolon),
     std::make_pair(",", TokenType::Comma),
@@ -129,21 +132,21 @@ constexpr std::array<std::pair<std::string_view, TokenType>, 50> SimpleTokenList
     std::make_pair("{", TokenType::CurlyBraceOpen),
     std::make_pair("}", TokenType::CurlyBraceClose),
 
-    std::make_pair("=", TokenType::OperatorAssign),
+    std::make_pair("=", TokenType::Equals),
 
-    std::make_pair("+", TokenType::OperatorPlus),
-    std::make_pair("-", TokenType::OperatorMinus),
-    std::make_pair("*", TokenType::OperatorStar),
-    std::make_pair("/", TokenType::OperatorSlash),
-    std::make_pair("%", TokenType::OperatorPercent),
+    std::make_pair("+", TokenType::Plus),
+    std::make_pair("-", TokenType::Minus),
+    std::make_pair("*", TokenType::Star),
+    std::make_pair("/", TokenType::Slash),
+    std::make_pair("%", TokenType::Percent),
 
-    std::make_pair("&", TokenType::OperatorBinaryAnd),
-    std::make_pair("|", TokenType::OperatorBinaryOr),
-    std::make_pair("^", TokenType::OperatorBinaryXor),
-    std::make_pair("~", TokenType::OperatorBinaryNot),
+    std::make_pair("&", TokenType::Ampersand),
+    std::make_pair("|", TokenType::VerticalBar),
+    std::make_pair("^", TokenType::Caret),
+    std::make_pair("~", TokenType::Tilde),
 
-    std::make_pair("?", TokenType::OperatorQuestionMark),
-    std::make_pair(":", TokenType::OperatorColon),
+    std::make_pair("?", TokenType::QuestionMark),
+    std::make_pair(":", TokenType::Colon),
 };
 
 enum class Keyword : uint8_t
@@ -215,7 +218,7 @@ enum class Keyword : uint8_t
     Finally,
 };
 
-constexpr std::array<std::string_view, magic_enum::enum_count<Keyword>() - 1> KeywordList
+constexpr std::array KeywordStrings
 {
     "void",
     "bool",
@@ -282,38 +285,132 @@ constexpr std::array<std::string_view, magic_enum::enum_count<Keyword>() - 1> Ke
     "finally",
 };
 
-std::unordered_map<TokenType, size_t> OperatorPrecedences
+enum class Operator : uint8_t
 {
-    /*std::make_pair(TokenType::OperatorScopeResolution, 1),
+    ScopeResolution,
 
-    std::make_pair(TokenType::OperatorIncrement, 2),
-    std::make_pair(TokenType::OperatorDecrement, 2), // TODO - Operator enum I guess
-    std::make_pair(TokenType::OperatorDot, 2),
-    std::make_pair(TokenType::OperatorArrow, 2),
+    PostIncrement,
+    PostDecrement,
+    FunctionCall,
+    Subscript,
+    MemberAccessDot,
+    MemberAccessArrow,
 
-    std::make_pair(TokenType::OperatorMinus, 3),
-    std::make_pair(TokenType::OperatorLogicalNot, 1),
-    std::make_pair(TokenType::OperatorBinaryNot, 1),
-    std::make_pair(TokenType::OperatorStar, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),
-    std::make_pair(TokenType::OperatorScopeResolution, 1),*/
+    PreIncrement,
+    PreDecrement,
+    UnaryMinus,
+    LogicalNot,
+    BinaryNot,
+    Cast,
+    Dereference,
+    AddressOf,
+
+    PointerToMemberDot,
+    PointerToMemberArrow,
+
+    Multiplication,
+    Division,
+    Modulo,
+
+    Addition,
+    Subtraction,
+
+    BitshiftLeft,
+    BitshiftRight,
+
+    Less,
+    LessEquals,
+    Greater,
+    GreaterEquals,
+
+    Equals,
+    NotEquals,
+
+    BinaryAnd,
+
+    BinaryXor,
+
+    BinaryOr,
+
+    LogicalAnd,
+
+    LogicalOr,
+
+    NullCoalescing,
+
+    Ternary,
+    Assignment,
+    AddEquals,
+    SubtractEquals,
+    MultiplyEquals,
+    DivideEquals,
+    ModuloEquals,
+    BitshiftLeftEquals,
+    BitshiftRightEquals,
+    BinaryAndEquals,
+    BinaryXorEquals,
+    BinaryOrEquals,
+    NullCoalescingEquals,
+    WideArrow,
 };
 
-using TokenValue = std::variant<std::string, int, char, Keyword>;
+inline std::unordered_map OperatorConversionLookup
+{
+    std::make_pair(TokenType::Equals, Operator::Assignment),
+
+    std::make_pair(TokenType::DoubleColon, Operator::ScopeResolution),
+
+    std::make_pair(TokenType::Dot, Operator::MemberAccessDot),
+    std::make_pair(TokenType::MinusGreaterThan, Operator::MemberAccessArrow),
+
+    std::make_pair(TokenType::EqualsGreaterThan, Operator::WideArrow),
+
+    std::make_pair(TokenType::Plus, Operator::Addition),
+    std::make_pair(TokenType::Minus, Operator::Subtraction),
+    std::make_pair(TokenType::Star, Operator::Multiplication),
+    std::make_pair(TokenType::Slash, Operator::Division),
+    std::make_pair(TokenType::Percent, Operator::Modulo),
+
+    std::make_pair(TokenType::DoublePlus, Operator::PreIncrement),
+    std::make_pair(TokenType::DoubleMinus, Operator::PreDecrement),
+
+    std::make_pair(TokenType::DoubleEquals, Operator::Equals),
+    std::make_pair(TokenType::ExclamationMarkEquals, Operator::NotEquals),
+    std::make_pair(TokenType::LessThan, Operator::Less),
+    std::make_pair(TokenType::LessThanEquals, Operator::LessEquals),
+    std::make_pair(TokenType::GreaterThan, Operator::Greater),
+    std::make_pair(TokenType::GreaterThanEquals, Operator::GreaterEquals),
+
+    std::make_pair(TokenType::DoubleAmpersand, Operator::LogicalAnd),
+    std::make_pair(TokenType::DoubleVerticalBar, Operator::LogicalOr),
+    std::make_pair(TokenType::ExclamationMark, Operator::LogicalNot),
+
+    std::make_pair(TokenType::Ampersand, Operator::BinaryAnd),
+    std::make_pair(TokenType::VerticalBar, Operator::BinaryOr),
+    std::make_pair(TokenType::Caret, Operator::BinaryXor),
+    std::make_pair(TokenType::Tilde, Operator::BinaryNot),
+
+    std::make_pair(TokenType::DoubleLessThan, Operator::BitshiftLeft),
+    std::make_pair(TokenType::DoubleGreaterThan, Operator::BitshiftRight),
+
+    std::make_pair(TokenType::QuestionMark, Operator::Ternary),
+    std::make_pair(TokenType::DoubleQuestionMark, Operator::NullCoalescing),
+    std::make_pair(TokenType::Colon, Operator::Ternary),
+
+    std::make_pair(TokenType::PlusEquals, Operator::AddEquals),
+    std::make_pair(TokenType::MinusEquals, Operator::SubtractEquals),
+    std::make_pair(TokenType::StarEquals, Operator::MultiplyEquals),
+    std::make_pair(TokenType::SlashEquals, Operator::DivideEquals),
+    std::make_pair(TokenType::PercentEquals, Operator::ModuloEquals),
+    std::make_pair(TokenType::AmpersandEquals, Operator::BinaryAndEquals),
+    std::make_pair(TokenType::VerticalBarEquals, Operator::BinaryOrEquals),
+    std::make_pair(TokenType::CaretEquals, Operator::BinaryXorEquals),
+    std::make_pair(TokenType::DoubleLessThanEquals, Operator::BitshiftLeftEquals),
+    std::make_pair(TokenType::DoubleGreaterThanEquals, Operator::BitshiftRightEquals),
+    std::make_pair(TokenType::DoubleQuestionMarkEquals, Operator::NullCoalescingEquals),
+};
+
+using TokenValue = std::variant<std::string, int, char, Keyword, Operator>;
 
 struct Token
 {
@@ -323,3 +420,7 @@ struct Token
     const InputFile* inputFile;
     Position position;
 };
+
+// Start of Token.inl
+
+constexpr bool IsTokenOperator(const TokenType tokenType) { return tokenType >= TokenType::Equals; }

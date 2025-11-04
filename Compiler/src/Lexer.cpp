@@ -30,12 +30,12 @@ void Lexer::ParseNext()
         return;
     }
 
-    for (const std::pair<std::string_view, TokenType>& token : SimpleTokenList)
+    for (const std::pair<const char*, TokenType>& token : SimpleTokenList)
     {
         if (!CheckString(token.first))
             continue;
 
-        if (token.second == TokenType::OperatorSlash)
+        if (token.second == TokenType::Slash)
         {
             // Check for a comment
             const char nextCharacter = PeekCharacter(1);
@@ -56,11 +56,11 @@ void Lexer::ParseNext()
             }
 
             // Single slash, interpret this as an operator
-            HandleSimpleToken(TokenType::OperatorSlash);
+            HandleSimpleToken(TokenType::Slash);
             return;
         }
 
-        HandleSimpleToken(token.second, token.first.size());
+        HandleSimpleToken(token.second, std::string_view{token.first}.size());
         return;
     }
 
@@ -117,9 +117,9 @@ void Lexer::ParseNext()
     }
 
     // Check for a keyword
-    for (size_t i = 0; i < KeywordList.size(); i++)
+    for (size_t i = 0; i < KeywordStrings.size(); i++)
     {
-        const std::string_view keyword = KeywordList[i];
+        const std::string_view keyword = KeywordStrings[i];
         if (!CheckString(keyword))
             continue;
 

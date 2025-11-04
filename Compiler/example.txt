@@ -1,4 +1,6 @@
 
+value = a + b * c + *d;
+
 value = Func(Func(17), value);
 
 /*int value = -91;

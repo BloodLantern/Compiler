@@ -1,15 +1,15 @@
 ﻿#include "PrecompiledHeader.hpp"
 #include "AbstractSyntaxTree.hpp"
 
-using namespace AbstractSyntaxTree;
+using namespace Ast;
 
 Variable::Variable(std::string name)
     : m_Name{std::move(name)}
 {
 }
 
-Operation::Operation(const char operatorCharacter, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs)
-    : m_Operator{operatorCharacter}
+Operation::Operation(const TokenType operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs)
+    : m_OperatorType{operatorType}
     , m_Lhs{std::move(lhs)}
     , m_Rhs{std::move(rhs)}
 {

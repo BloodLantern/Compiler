@@ -1,8 +1,9 @@
 ﻿#pragma once
 
+#include "Token.hpp"
 #include "Utils.hpp"
 
-namespace AbstractSyntaxTree
+namespace Ast
 {
     class Expression
     {
@@ -24,17 +25,6 @@ namespace AbstractSyntaxTree
         NumberType m_Value;
     };
 
-    class String : public Expression
-    {
-    public:
-        explicit String(std::string value);
-
-        GETTER_M(const std::string&, Value)
-
-    private:
-        std::string m_Value;
-    };
-
     class Character : public Expression
     {
     public:
@@ -44,6 +34,17 @@ namespace AbstractSyntaxTree
 
     private:
         char m_Value;
+    };
+
+    class String : public Expression
+    {
+    public:
+        explicit String(std::string value);
+
+        GETTER_M(const std::string&, Value)
+
+    private:
+        std::string m_Value;
     };
 
     class Variable : public Expression
@@ -60,14 +61,14 @@ namespace AbstractSyntaxTree
     class Operation : public Expression
     {
     public:
-        Operation(char operatorCharacter, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
+        Operation(TokenType operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
 
-        GETTER_M(char, Operator)
+        GETTER_M(TokenType, OperatorType)
         GETTER_M(const std::unique_ptr<Expression>&, Lhs)
         GETTER_M(const std::unique_ptr<Expression>&, Rhs)
 
     private:
-        char m_Operator;
+        TokenType m_OperatorType;
         std::unique_ptr<Expression> m_Lhs, m_Rhs;
     };
 
@@ -116,9 +117,9 @@ namespace AbstractSyntaxTree
     };
 }
 
-// Start of AbstractSyntaxTree.inl
+// Start of AST.inl
 
-namespace AbstractSyntaxTree
+namespace Ast
 {
     template <std::integral NumberType>
     Number<NumberType>::Number(NumberType value)

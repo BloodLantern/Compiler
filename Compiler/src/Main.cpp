@@ -21,6 +21,11 @@ int main()
     if (lexer.GetFailure())
         Utils::Exit(ErrorCodes::FatalError);
 
+    Parser parser{tokens};
+
+    if (parser.GetFailure())
+        Utils::Exit(ErrorCodes::SyntaxError);
+
     for (const Token& token : tokens)
     {
         std::print(std::cout, "{}", magic_enum::enum_name(token.type));
@@ -44,6 +49,10 @@ int main()
                 std::print(std::cout, "({})", magic_enum::enum_name(std::get<Keyword>(token.value.value())));
                 break;
 
+            case TokenType::Operator:
+                std::print(std::cout, "({})", magic_enum::enum_name(std::get<Operator>(token.value.value())));
+                break;
+
             case TokenType::Semicolon:
                 std::println(std::cout);
                 break;
@@ -57,8 +66,9 @@ int main()
     }
 
     std::println(std::cout);
-
-    Parser parser{tokens};
-    std::vector<std::unique_ptr<AbstractSyntaxTree::Expression>> expressions;
+    std::vector<std::unique_ptr<Ast::Expression>> expressions;
     parser.ParseAll(expressions);
+
+    if (parser.GetFailure())
+        Utils::Exit(ErrorCodes::SyntaxError);
 }
