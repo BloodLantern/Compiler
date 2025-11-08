@@ -50,7 +50,7 @@ void Lexer::ParseNext()
             // Multi-line comment
             if (nextCharacter == '*')
             {
-                Skip(1);
+                SkipCharacters(1);
                 SkipUntilAfter("*/");
                 return ParseNext();
             }
@@ -71,14 +71,14 @@ void Lexer::ParseNext()
             const char literalEndCharacter = PeekCharacter(2);
             if (literalEndCharacter != '\'')
             {
-                Skip(2);
+                SkipCharacters(2);
                 RaiseError("Expected end of character literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
                 return;
             }
 
             m_LastToken.value = PeekCharacter(1);
             m_LastToken.type = TokenType::LiteralCharacter;
-            Skip(3);
+            SkipCharacters(3);
             return;
         }
 
@@ -117,9 +117,9 @@ void Lexer::ParseNext()
     }
 
     // Check for a keyword
-    for (size_t i = 0; i < KeywordStrings.size(); i++)
+    for (const auto& pair : KeywordStrings)
     {
-        const std::string_view keyword = KeywordStrings[i];
+        const std::string_view keyword = pair.second;
         if (!CheckString(keyword))
             continue;
 
@@ -128,8 +128,8 @@ void Lexer::ParseNext()
             continue;
 
         m_LastToken.type = TokenType::Keyword;
-        m_LastToken.value = static_cast<Keyword>(i + 1);
-        Skip(followingCharacter);
+        m_LastToken.value = pair.first;
+        SkipCharacters(followingCharacter);
         return;
     }
 
@@ -179,7 +179,7 @@ void Lexer::ConsumeNextCharacter()
     m_Character = (*m_InputFile)[++m_Index];
 }
 
-void Lexer::Skip(const ptrdiff_t count)
+void Lexer::SkipCharacters(const ptrdiff_t count)
 {
     if (count == 0)
         return;
@@ -249,7 +249,7 @@ void Lexer::HandleSimpleToken(const TokenType type, const size_t strSize)
 {
     m_LastToken.value.reset();
     m_LastToken.type = type;
-    Skip(static_cast<ptrdiff_t>(strSize));
+    SkipCharacters(static_cast<ptrdiff_t>(strSize));
 }
 
 bool Lexer::FinishedReading() const

@@ -6,16 +6,19 @@
 class Parser
 {
 public:
-    explicit Parser(std::vector<Token>& tokens);
+    explicit Parser(const std::vector<Token>& tokens);
 
-    std::unique_ptr<Ast::Expression> ParseCurrent();
-    void ParseAll(std::vector<std::unique_ptr<Ast::Expression>>& output);
+    std::unique_ptr<Ast::Expression> ParseExpression();
+    std::unique_ptr<Ast::Statement> ParseTopLevelStatement();
+    std::unique_ptr<Ast::Statement> ParseTopLevelDeclaration();
+    std::unique_ptr<Ast::Statement> ParseFunctionLevelStatement();
+    void ParseAll(std::vector<std::unique_ptr<Ast::Statement>>& output);
 
     ATTRIBUTE_NODISCARD
     const Token& GetCurrentToken() const;
     ATTRIBUTE_NODISCARD
     const Token& GetNextToken();
-    void Skip(size_t count);
+    void SkipTokens(size_t count);
 
     GETTER_M(bool, Failure)
 
@@ -25,23 +28,32 @@ private:
 
     bool m_Failure = false;
 
-    void PreProcessOperators(std::vector<Token>& tokens);
-    std::optional<Operator> GetOperator(Token* previous, Token& current, Token* next);
+    /// @brief Parses the current token as an operator.
+    /// @return If the current token isn't an operator (as of @c IsTokenOperator()), returns an empty optional.
+    /// Otherwise, returns the corresponding operator based on the previous and next tokens.
+    std::optional<Operator> ParseCurrentOperator();
 
     std::unique_ptr<Ast::Expression> ParsePrimary();
     std::unique_ptr<Ast::Expression> ParseIdentifier();
     std::unique_ptr<Ast::Expression> ParseParentheses();
     std::unique_ptr<Ast::Expression> ParseLiteral();
-    std::unique_ptr<Ast::Expression> ParseOperationRhs(size_t expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
+    std::unique_ptr<Ast::Expression> ParseOperationRhs(int expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
+    std::unique_ptr<Ast::TypeName> ParseType();
+    std::unique_ptr<Ast::TypeNamePair> ParseTypeNamePair();
 
-    template <typename... Args>
-    std::unique_ptr<Ast::Expression> RaiseError(const std::string& message, Args&&... args);
+    std::unique_ptr<Ast::Statement> ParseVariableDeclaration();
+    std::unique_ptr<Ast::Statement> ParseFunction();
+    std::unique_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();
+    std::unique_ptr<Ast::FunctionDefinition> ParseFunctionDefinition();
+
+    template <typename T, typename... Args>
+    std::unique_ptr<T> RaiseError(const std::string& message, Args&&... args);
     template <typename... Args>
     void RaiseError(const Token& token, const std::string& message, Args&&... args);
 };
 
-template <typename... Args>
-std::unique_ptr<Ast::Expression> Parser::RaiseError(const std::string& message, Args&&... args)
+template <typename T, typename ... Args>
+std::unique_ptr<T> Parser::RaiseError(const std::string& message, Args&&... args)
 {
     RaiseError(GetCurrentToken(), message, std::forward<Args>(args)...);
     return nullptr;

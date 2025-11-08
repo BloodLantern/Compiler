@@ -102,6 +102,9 @@ namespace Utils
     template <typename T>
     using Predicate = std::function<bool(T value)>;
 
+    template <typename T>
+    concept Enum = std::is_enum_v<T>;
+
     ATTRIBUTE_NORETURN
     void Exit(ErrorCodes code);
 }
@@ -112,3 +115,50 @@ namespace std
     size_t replace_all(std::string& str, std::string_view pattern, std::string_view replacement);
 }
 // ReSharper enable CppClangTidyCertDcl58Cpp
+
+/// @brief @c std::formatter template specialization for any @c enum type.
+/// @details This prints the @c enum value as a string using @c magic_enum::enum_name(), or as an integer if the @c d format is used.
+template <Utils::Enum EnumT>
+struct std::formatter<EnumT>
+{
+    /// @brief Parses the input formatting options.
+    template <class ParseContext>
+    constexpr typename ParseContext::iterator parse(ParseContext& ctx)
+    {
+        auto it = ctx.begin();
+        if (it == ctx.end())
+            return it;
+
+        if (*it == ':')
+        {
+            it++;
+            if (*it != 'd')
+                throw std::format_error{"Invalid format arguments for enum"};
+
+            m_PrintAsInteger = true;
+            it++;
+        }
+
+        if (*it != '}')
+            throw std::format_error{"Invalid format arguments for enum"};
+
+        return it;
+    }
+
+    /// @brief Formats a string using the given @c enum value, according to the given options in the parse function.
+    template <class FormatContext>
+    typename FormatContext::iterator format(const EnumT& e, FormatContext& ctx) const
+    {
+        std::ostringstream out;
+
+        if (m_PrintAsInteger)
+            out << static_cast<std::underlying_type_t<EnumT>>(e);
+        else
+            out << magic_enum::enum_name(e);
+
+        return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+    }
+
+private:
+    bool m_PrintAsInteger = false;
+};

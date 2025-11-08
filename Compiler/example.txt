@@ -1,7 +1,13 @@
 
-value = a + b * c + *d;
+int main()
+{
+    value = a + b * c / *d;
+    //int value = (a + ((b * c) / (*d)));
 
-value = Func(Func(17), value);
+    //value = Func(Func(17), value);
+
+    //return 0;
+}
 
 /*int value = -91;
 

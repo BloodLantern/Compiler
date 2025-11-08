@@ -28,7 +28,7 @@ private:
     bool m_Failure = false;
 
     void ConsumeNextCharacter();
-    void Skip(ptrdiff_t count);
+    void SkipCharacters(ptrdiff_t count);
     ATTRIBUTE_NODISCARD
     char PeekCharacter(ptrdiff_t offset) const;
 

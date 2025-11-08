@@ -1,5 +1,8 @@
 ﻿#pragma once
 
+#include "InputFile.hpp"
+#include "Position.hpp"
+
 enum class TokenType : uint8_t
 {
     None,
@@ -22,8 +25,7 @@ enum class TokenType : uint8_t
     LiteralCharacter,
     LiteralString,
 
-    /// @brief If a token has the Operator type, it has a value that corresponds to an Operator enum entry.
-    Operator,
+    FirstOperator,
 
     Equals,
 
@@ -77,8 +79,14 @@ enum class TokenType : uint8_t
     DoubleLessThanEquals,
     DoubleGreaterThanEquals,
     DoubleQuestionMarkEquals,
+
+    LastOperator,
 };
 
+/// @brief Checks whether the given @c TokenType is an operator token, i.e.,
+/// a token that can be converted to an @c Operator using @c BaseOperatorConversionLookup.
+/// @param tokenType The token type to check
+/// @return @c true if @p tokenType is an operator token, @c false otherwise
 constexpr bool IsTokenOperator(TokenType tokenType);
 
 constexpr std::array SimpleTokenList
@@ -149,9 +157,12 @@ constexpr std::array SimpleTokenList
     std::make_pair(":", TokenType::Colon),
 };
 
+/// @brief Reserved language keywords.
 enum class Keyword : uint8_t
 {
     None,
+
+    FirstType,
 
     Void,
     Bool,
@@ -165,6 +176,8 @@ enum class Keyword : uint8_t
     Long,
     ULong,
     String,
+
+    LastType,
 
     Const,
     Constexpr,
@@ -218,126 +231,84 @@ enum class Keyword : uint8_t
     Finally,
 };
 
-constexpr std::array KeywordStrings
+/// @brief Checks whether the given @c Keyword is a type keyword, e.g., @c Keyword::Void, @c Keyword::Int, etc...
+/// @param keyword The keyword to check
+/// @return @c true if @p keyword is a type keyword, @c false otherwise
+constexpr bool IsKeywordType(Keyword keyword);
+
+inline std::unordered_map KeywordStrings
 {
-    "void",
-    "bool",
-    "char",
-    "sbyte",
-    "byte",
-    "short",
-    "ushort",
-    "int",
-    "uint",
-    "long",
-    "ulong",
-    "string",
+    std::make_pair(Keyword::Void, "void"),
+    std::make_pair(Keyword::Bool, "bool"),
+    std::make_pair(Keyword::Char, "char"),
+    std::make_pair(Keyword::SByte, "sbyte"),
+    std::make_pair(Keyword::Byte, "byte"),
+    std::make_pair(Keyword::Short, "short"),
+    std::make_pair(Keyword::UShort, "ushort"),
+    std::make_pair(Keyword::Int, "int"),
+    std::make_pair(Keyword::UInt, "uint"),
+    std::make_pair(Keyword::Long, "long"),
+    std::make_pair(Keyword::ULong, "ulong"),
+    std::make_pair(Keyword::String, "string"),
 
-    "const",
-    "constexpr",
-    "static",
-    "extern",
+    std::make_pair(Keyword::Const, "const"),
+    std::make_pair(Keyword::Constexpr, "constexpr"),
+    std::make_pair(Keyword::Static, "static"),
+    std::make_pair(Keyword::Extern, "extern"),
 
-    "class",
-    "struct",
-    "enum",
+    std::make_pair(Keyword::Class, "class"),
+    std::make_pair(Keyword::Struct, "struct"),
+    std::make_pair(Keyword::Enum, "enum"),
 
-    "public",
-    "private",
-    "protected",
-    "internal",
-    "restricted",
+    std::make_pair(Keyword::Public, "public"),
+    std::make_pair(Keyword::Private, "private"),
+    std::make_pair(Keyword::Protected, "protected"),
+    std::make_pair(Keyword::Internal, "internal"),
+    std::make_pair(Keyword::Restricted, "restricted"),
 
-    "true",
-    "false",
-    "null",
+    std::make_pair(Keyword::True, "true"),
+    std::make_pair(Keyword::False, "false"),
+    std::make_pair(Keyword::Null, "null"),
 
-    "if",
-    "else",
-    "switch",
-    "case",
-    "break",
-    "return",
-    "while",
-    "do",
-    "for",
-    "continue",
-    "goto",
+    std::make_pair(Keyword::If, "if"),
+    std::make_pair(Keyword::Else, "else"),
+    std::make_pair(Keyword::Switch, "switch"),
+    std::make_pair(Keyword::Case, "case"),
+    std::make_pair(Keyword::Break, "break"),
+    std::make_pair(Keyword::Return, "return"),
+    std::make_pair(Keyword::While, "while"),
+    std::make_pair(Keyword::Do, "do"),
+    std::make_pair(Keyword::For, "for"),
+    std::make_pair(Keyword::Continue, "continue"),
+    std::make_pair(Keyword::Goto, "goto"),
 
-    "virtual",
-    "override",
-    "abstract",
-    "final",
+    std::make_pair(Keyword::Virtual, "virtual"),
+    std::make_pair(Keyword::Override, "override"),
+    std::make_pair(Keyword::Abstract, "abstract"),
+    std::make_pair(Keyword::Final, "final"),
 
-    "namespace",
-    "sizeof",
-    "nameof",
-    "offsetof",
+    std::make_pair(Keyword::Namespace, "namespace"),
+    std::make_pair(Keyword::Sizeof, "sizeof"),
+    std::make_pair(Keyword::Nameof, "nameof"),
+    std::make_pair(Keyword::Offsetof, "offsetof"),
 
-    "import",
-    "using",
+    std::make_pair(Keyword::Import, "import"),
+    std::make_pair(Keyword::Using, "using"),
 
-    "out",
+    std::make_pair(Keyword::Out, "out"),
 
-    "throw",
-    "try",
-    "catch",
-    "finally",
+    std::make_pair(Keyword::Throw, "throw"),
+    std::make_pair(Keyword::Try, "try"),
+    std::make_pair(Keyword::Catch, "catch"),
+    std::make_pair(Keyword::Finally, "finally"),
 };
 
+/// @brief Operators sorted by precedence, with a higher precedence being executed first.
 enum class Operator : uint8_t
 {
-    ScopeResolution,
+    None,
 
-    PostIncrement,
-    PostDecrement,
-    FunctionCall,
-    Subscript,
-    MemberAccessDot,
-    MemberAccessArrow,
-
-    PreIncrement,
-    PreDecrement,
-    UnaryMinus,
-    LogicalNot,
-    BinaryNot,
-    Cast,
-    Dereference,
-    AddressOf,
-
-    PointerToMemberDot,
-    PointerToMemberArrow,
-
-    Multiplication,
-    Division,
-    Modulo,
-
-    Addition,
-    Subtraction,
-
-    BitshiftLeft,
-    BitshiftRight,
-
-    Less,
-    LessEquals,
-    Greater,
-    GreaterEquals,
-
-    Equals,
-    NotEquals,
-
-    BinaryAnd,
-
-    BinaryXor,
-
-    BinaryOr,
-
-    LogicalAnd,
-
-    LogicalOr,
-
-    NullCoalescing,
-
+    Precedence0,
     Ternary,
     Assignment,
     AddEquals,
@@ -352,9 +323,77 @@ enum class Operator : uint8_t
     BinaryOrEquals,
     NullCoalescingEquals,
     WideArrow,
+
+    Precedence1,
+    NullCoalescing,
+
+    Precedence2,
+    LogicalOr,
+
+    Precedence3,
+    LogicalAnd,
+
+    Precedence4,
+    BinaryOr,
+
+    Precedence5,
+    BinaryXor,
+
+    Precedence6,
+    BinaryAnd,
+
+    Precedence7,
+    Equals,
+    NotEquals,
+
+    Precedence8,
+    Less,
+    LessEquals,
+    Greater,
+    GreaterEquals,
+
+    Precedence9,
+    BitshiftLeft,
+    BitshiftRight,
+
+    Precedence10,
+    Addition,
+    Subtraction,
+
+    Precedence11,
+    Multiplication,
+    Division,
+    Modulo,
+
+    Precedence12,
+    PointerToMemberDot,
+    PointerToMemberArrow,
+
+    Precedence13,
+    PreIncrement,
+    PreDecrement,
+    UnaryMinus,
+    LogicalNot,
+    BinaryNot,
+    Cast,
+    Dereference,
+    AddressOf,
+
+    Precedence14,
+    PostIncrement,
+    PostDecrement,
+    FunctionCall,
+    Subscript,
+    MemberAccessDot,
+    MemberAccessArrow,
+
+    Precedence15,
+    ScopeResolution,
 };
 
-inline std::unordered_map OperatorConversionLookup
+constexpr int GetOperatorPrecedence(Operator op);
+
+inline std::unordered_map BaseOperatorConversionLookup
 {
     std::make_pair(TokenType::Equals, Operator::Assignment),
 
@@ -410,7 +449,7 @@ inline std::unordered_map OperatorConversionLookup
     std::make_pair(TokenType::DoubleQuestionMarkEquals, Operator::NullCoalescingEquals),
 };
 
-using TokenValue = std::variant<std::string, int, char, Keyword, Operator>;
+using TokenValue = std::variant<std::string, int, char, Keyword>;
 
 struct Token
 {
@@ -423,4 +462,31 @@ struct Token
 
 // Start of Token.inl
 
-constexpr bool IsTokenOperator(const TokenType tokenType) { return tokenType >= TokenType::Equals; }
+constexpr bool IsTokenOperator(const TokenType tokenType) { return tokenType > TokenType::FirstOperator && tokenType < TokenType::LastOperator; }
+
+constexpr bool IsKeywordType(const Keyword keyword) { return keyword > Keyword::FirstType && keyword < Keyword::LastType; }
+
+#define GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, precedence) if ((op) > Operator::Precedence##precedence) return (precedence) * 10;
+
+constexpr int GetOperatorPrecedence(const Operator op)
+{
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 15)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 14)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 13)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 12)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 11)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 10)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 9)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 8)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 7)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 6)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 5)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 4)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 3)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 2)
+    GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 1)
+
+    return 0;
+}
+
+#undef GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE
