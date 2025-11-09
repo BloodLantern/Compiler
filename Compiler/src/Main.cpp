@@ -6,6 +6,11 @@
 
 // TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
 
+static std::unique_ptr<llvm::LLVMContext> TheContext;
+static std::unique_ptr<llvm::IRBuilder<>> Builder;
+static std::unique_ptr<llvm::Module> TheModule;
+static std::unordered_map<std::string, llvm::Value *> NamedValues;
+
 int main()
 {
     std::println(std::cout, "Working directory: {}", std::filesystem::current_path().generic_string());

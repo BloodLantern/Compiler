@@ -11,6 +11,8 @@ namespace Ast
         Statement() = default;
         virtual ~Statement() = default;
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
+
+        virtual llvm::Value* CodeGeneration() = 0;
     };
 
     class Expression : public Statement
