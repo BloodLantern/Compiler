@@ -26,21 +26,21 @@ std::unique_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
             if (IsKeywordType(keyword))
                 return ParseTopLevelDeclaration();
 
-            return RaiseError<Ast::Statement>("Unexpected keyword {}", keyword);
+            return RaiseError("Unexpected keyword {}", keyword);
         }
 
         case TokenType::Identifier:
             return ParseTopLevelDeclaration();
 
         default:
-            return RaiseError<Ast::Statement>("Unexpected token {}", token.type);
+            return RaiseError("Unexpected token {}", token.type);
     }
 }
 
 std::unique_ptr<Ast::Statement> Parser::ParseTopLevelDeclaration()
 {
     if (GetNextToken().type != TokenType::Identifier)
-        return RaiseError<Ast::Statement>("Expected identifier for top level declaration, got {}", GetCurrentToken().type);
+        return RaiseError("Expected identifier for top level declaration, got {}", GetCurrentToken().type);
 
     if (GetNextToken().type == TokenType::ParenthesisOpen)
         return ParseFunction();
@@ -338,7 +338,7 @@ std::unique_ptr<Ast::Statement> Parser::ParseVariableDeclaration()
             return nullptr; // TODO
 
         default:
-            return RaiseError<Ast::Statement>("Expected either '=' or ';' in variable declaration, got {}", currentToken.type);
+            return RaiseError("Expected either '=' or ';' in variable declaration, got {}", currentToken.type);
     }
 }
 
@@ -354,14 +354,22 @@ std::unique_ptr<Ast::FunctionPrototype> Parser::ParseFunctionPrototype()
     if (GetCurrentToken().type != TokenType::ParenthesisOpen)
         return RaiseError<Ast::FunctionPrototype>("Expected '(' in prototype, got {}", GetCurrentToken().type);
 
+    SkipTokens(1);
+
     std::vector<Ast::FunctionPrototype::Parameter> arguments;
-    while (GetNextToken().type != TokenType::ParenthesisClose)
+    while (true)
     {
         arguments.push_back(ParseTypeNamePair());
 
         const Token& parameterSeparator = GetCurrentToken();
+
+        if (parameterSeparator.type == TokenType::ParenthesisClose)
+            break;
+
         if (parameterSeparator.type != TokenType::Comma)
             return RaiseError<Ast::FunctionPrototype>("Expected ',' in the argument list, got {}", parameterSeparator.type);
+
+        SkipTokens(1);
     }
 
     SkipTokens(1); // Skip ')'

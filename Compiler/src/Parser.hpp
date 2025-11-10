@@ -46,7 +46,7 @@ private:
     std::unique_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();
     std::unique_ptr<Ast::FunctionDefinition> ParseFunctionDefinition();
 
-    template <typename T, typename... Args>
+    template <typename T = Ast::Statement, typename... Args>
     std::unique_ptr<T> RaiseError(const std::string& message, Args&&... args);
     template <typename... Args>
     void RaiseError(const Token& token, const std::string& message, Args&&... args);

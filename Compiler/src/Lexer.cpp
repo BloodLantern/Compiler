@@ -157,6 +157,49 @@ void Lexer::ParseAll(std::vector<Token>& output)
     while (m_LastToken.type != TokenType::EndOfFile);
 }
 
+void Lexer::PrintDebug(const std::vector<Token>& tokens)
+{
+    for (const Token& token : tokens)
+    {
+        if (token.type == TokenType::CurlyBraceOpen)
+            std::println();
+
+        std::print("{}", magic_enum::enum_name(token.type));
+
+        switch (token.type)
+        {
+        case TokenType::Identifier:
+        case TokenType::LiteralString:
+            std::print("(\"{}\")", std::get<std::string>(token.value.value()));
+            break;
+
+        case TokenType::LiteralInteger:
+            std::print("({})", std::get<int>(token.value.value()));
+            break;
+
+        case TokenType::LiteralCharacter:
+            std::print("({:?})", std::get<char>(token.value.value()));
+            break;
+
+        case TokenType::Keyword:
+            std::print("({})", magic_enum::enum_name(std::get<Keyword>(token.value.value())));
+            break;
+
+        case TokenType::Semicolon:
+        case TokenType::CurlyBraceOpen:
+        case TokenType::CurlyBraceClose:
+            std::println();
+            break;
+
+        default:
+            break;
+        }
+
+        if (token.type != TokenType::Semicolon && token.type != TokenType::CurlyBraceClose && token.type != TokenType::CurlyBraceOpen)
+            std::print(" ");
+    }
+}
+
 void Lexer::ConsumeNextCharacter()
 {
     if (m_Character == '\n')

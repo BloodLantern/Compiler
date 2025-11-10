@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Globals.hpp"
 #include "Token.hpp"
 #include "Utils.hpp"
 
@@ -12,7 +13,11 @@ namespace Ast
         virtual ~Statement() = default;
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
 
-        // virtual llvm::Value* CodeGeneration() = 0;
+        virtual llvm::Value* CodeGeneration() = 0;
+
+    protected:
+        template <typename T = llvm::Value, typename... Args>
+        T* RaiseError(const std::string& message, Args&&... args);
     };
 
     class Expression : public Statement
@@ -25,6 +30,8 @@ namespace Ast
     public:
         explicit Number(NumberType value);
 
+        llvm::Value* CodeGeneration() override;
+
         GETTER_M(NumberType, Value)
 
     private:
@@ -35,6 +42,8 @@ namespace Ast
     {
     public:
         explicit Character(char value);
+
+        llvm::Value* CodeGeneration() override;
 
         GETTER_M(char, Value)
 
@@ -47,6 +56,8 @@ namespace Ast
     public:
         explicit String(std::string value);
 
+        llvm::Value* CodeGeneration() override;
+
         GETTER_M(const std::string&, Value)
 
     private:
@@ -58,6 +69,8 @@ namespace Ast
     public:
         explicit Variable(std::string name);
 
+        llvm::Value* CodeGeneration() override;
+
         GETTER_M(const std::string&, Name)
 
     private:
@@ -68,6 +81,8 @@ namespace Ast
     {
     public:
         Operation(Operator operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
+
+        llvm::Value* CodeGeneration() override;
 
         GETTER_M(Operator, OperatorType)
         GETTER_M(const std::unique_ptr<Expression>&, Lhs)
@@ -82,6 +97,8 @@ namespace Ast
     {
     public:
         FunctionCall(std::string callee, std::vector<std::unique_ptr<Expression>> arguments);
+
+        llvm::Value* CodeGeneration() override;
 
         GETTER_M(const std::string&, Callee)
         GETTER_M(const std::vector<std::unique_ptr<Expression>>&, Arguments)
@@ -109,6 +126,8 @@ namespace Ast
     public:
         explicit TypeNamePair(std::unique_ptr<TypeName> type, std::string name);
 
+        llvm::Value* CodeGeneration() override;
+
         GETTER_M(const std::unique_ptr<TypeName>&, Type)
         GETTER_M(const std::string&, Name)
 
@@ -125,6 +144,8 @@ namespace Ast
 
         FunctionPrototype(std::unique_ptr<TypeNamePair> typeNamePair, std::vector<Parameter> parameters);
 
+        llvm::Function* CodeGeneration() override;
+
         GETTER_M(const std::unique_ptr<TypeNamePair>&, TypeNamePair)
         GETTER_M(const std::vector<Parameter>&, Parameters)
 
@@ -139,6 +160,8 @@ namespace Ast
     public:
         FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::vector<std::unique_ptr<Statement>> body);
 
+        llvm::Function* CodeGeneration() override;
+
         GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
         GETTER_M(const std::vector<std::unique_ptr<Statement>>&, Body)
 
@@ -152,9 +175,32 @@ namespace Ast
 
 namespace Ast
 {
+    template <typename T, typename ... Args>
+    T* Statement::RaiseError(const std::string& message, Args&&... args)
+    {
+        std::println(
+            std::cerr,
+            "Code generation error: {}",
+            std::vformat(message, std::make_format_args(args...))
+        );
+
+        return nullptr;
+    }
+
     template <std::integral NumberType>
     Number<NumberType>::Number(NumberType value)
         : m_Value{value}
     {
+    }
+
+    template <std::integral NumberType>
+    llvm::Value* Number<NumberType>::CodeGeneration()
+    {
+        if constexpr (std::is_same_v<NumberType, int>)
+            return llvm::ConstantInt::get(*theContext, llvm::APInt(32, m_Value, true));
+        else
+            static_assert(false, "Unhandled numeric type");
+
+        std::unreachable();
     }
 }

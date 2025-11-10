@@ -5,11 +5,6 @@
 
 // TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
 
-static std::unique_ptr<llvm::LLVMContext> TheContext;
-static std::unique_ptr<llvm::IRBuilder<>> Builder;
-static std::unique_ptr<llvm::Module> TheModule;
-static std::unordered_map<std::string, llvm::Value*> NamedValues;
-
 int main()
 {
     std::println("Working directory: {}", std::filesystem::current_path().generic_string());
@@ -22,47 +17,12 @@ int main()
     std::vector<Token> tokens;
     lexer.ParseAll(tokens);
 
+    Lexer::PrintDebug(tokens);
+
     if (lexer.GetFailure())
         Utils::Exit(ErrorCodes::FatalError);
 
     Parser parser{tokens};
-
-    for (const Token& token : tokens)
-    {
-        std::print("{}", magic_enum::enum_name(token.type));
-
-        switch (token.type)
-        {
-            case TokenType::Identifier:
-            case TokenType::LiteralString:
-                std::print("(\"{}\")", std::get<std::string>(token.value.value()));
-                break;
-
-            case TokenType::LiteralInteger:
-                std::print("({})", std::get<int>(token.value.value()));
-                break;
-
-            case TokenType::LiteralCharacter:
-                std::print("({:?})", std::get<char>(token.value.value()));
-                break;
-
-            case TokenType::Keyword:
-                std::print("({})", magic_enum::enum_name(std::get<Keyword>(token.value.value())));
-                break;
-
-            case TokenType::Semicolon:
-            case TokenType::CurlyBraceOpen:
-            case TokenType::CurlyBraceClose:
-                std::println(std::cout);
-                break;
-
-            default:
-                break;
-        }
-
-        if (token.type != TokenType::Semicolon)
-            std::print(" ");
-    }
 
     std::println(std::cout);
     std::cout.flush();
@@ -75,4 +35,7 @@ int main()
 
     if (parser.GetFailure())
         Utils::Exit(ErrorCodes::SyntaxError);
+
+    for (const std::unique_ptr<Ast::Statement>& statement : statements)
+        statement->CodeGeneration();
 }

@@ -2,11 +2,25 @@
 find_package(LLVM REQUIRED CONFIG)
 find_package(magic_enum REQUIRED CONFIG)
 
-# Add source files
-aux_source_directory("src" SOURCES)
-
 # Add executable target
-add_executable (Compiler ${SOURCES})
+add_executable (Compiler
+        src/AbstractSyntaxTree.hpp
+        src/AbstractSyntaxTree.cpp
+        src/Attributes.hpp
+        src/CompilerSpecific.hpp
+        src/ErrorCodes.hpp
+        src/Globals.hpp
+        src/InputFile.cpp
+        src/InputFile.hpp
+        src/Lexer.cpp
+        src/Lexer.hpp
+        src/Main.cpp
+        src/Parser.cpp
+        src/Parser.hpp
+        src/Position.hpp
+        src/Token.hpp
+        src/Utils.cpp
+        src/Utils.hpp)
 
 include_directories(${LLVM_INCLUDE_DIRS})
 add_definitions(${LLVM_DEFINITIONS})
@@ -24,6 +38,7 @@ target_precompile_headers(Compiler PRIVATE
         <unordered_map>
         <variant>
         <vector>
+        <memory>
 
         # magic_enum
         <magic_enum/magic_enum.hpp>

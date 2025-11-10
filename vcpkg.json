@@ -1,5 +1,6 @@
 {
-  "dependencies": [
-    "magic-enum"
-  ]
+  "dependencies" : [ {
+    "name" : "magic-enum",
+    "version>=" : "0.9.7#1"
+  } ]
 }

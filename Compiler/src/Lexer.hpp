@@ -12,6 +12,7 @@ public:
 
     void ParseNext();
     void ParseAll(std::vector<Token>& output);
+    static void PrintDebug(const std::vector<Token>& tokens);
 
     GETTER_M(const Token&, LastToken)
     GETTER_M(bool, Failure)

@@ -112,18 +112,18 @@ namespace Utils
 // ReSharper disable CppClangTidyCertDcl58Cpp
 namespace std
 {
-    size_t replace_all(std::string& str, std::string_view pattern, std::string_view replacement);
+    size_t replace_all(std::string& str, std::string_view pattern, std::string_view replacement); // NOLINT(*-dcl58-cpp)
 }
 // ReSharper enable CppClangTidyCertDcl58Cpp
 
 /// @brief @c std::formatter template specialization for any @c enum type.
 /// @details This prints the @c enum value as a string using @c magic_enum::enum_name(), or as an integer if the @c d format is used.
 template <Utils::Enum EnumT>
-struct std::formatter<EnumT>
+struct std::formatter<EnumT> // NOLINT(*-dcl58-cpp)
 {
     /// @brief Parses the input formatting options.
     template <class ParseContext>
-    constexpr typename ParseContext::iterator parse(ParseContext& ctx)
+    constexpr ParseContext::iterator parse(ParseContext& ctx)
     {
         auto it = ctx.begin();
         if (it == ctx.end())
@@ -131,12 +131,12 @@ struct std::formatter<EnumT>
 
         if (*it == ':')
         {
-            it++;
+            ++it;
             if (*it != 'd')
                 throw std::format_error{"Invalid format arguments for enum"};
 
             m_PrintAsInteger = true;
-            it++;
+            ++it;
         }
 
         if (*it != '}')
@@ -147,7 +147,7 @@ struct std::formatter<EnumT>
 
     /// @brief Formats a string using the given @c enum value, according to the given options in the parse function.
     template <class FormatContext>
-    typename FormatContext::iterator format(const EnumT& e, FormatContext& ctx) const
+    FormatContext::iterator format(const EnumT& e, FormatContext& ctx) const
     {
         std::ostringstream out;
 
