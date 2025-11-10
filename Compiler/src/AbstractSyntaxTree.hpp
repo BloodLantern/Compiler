@@ -121,12 +121,10 @@ namespace Ast
     };
 
     /// @brief Represents a combination of a type and a name.
-    class TypeNamePair : public Expression
+    class TypeNamePair
     {
     public:
         explicit TypeNamePair(std::unique_ptr<TypeName> type, std::string name);
-
-        llvm::Value* CodeGeneration() override;
 
         GETTER_M(const std::unique_ptr<TypeName>&, Type)
         GETTER_M(const std::string&, Name)

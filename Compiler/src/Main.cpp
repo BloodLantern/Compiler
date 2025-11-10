@@ -1,4 +1,3 @@
-
 #include "InputFile.hpp"
 #include "Lexer.hpp"
 #include "Parser.hpp"
@@ -36,6 +35,15 @@ int main()
     if (parser.GetFailure())
         Utils::Exit(ErrorCodes::SyntaxError);
 
+    theContext = std::make_unique<llvm::LLVMContext>();
+    builder = std::make_unique<llvm::IRBuilder<>>(*theContext);
+    theModule = std::make_unique<llvm::Module>("Example module", *theContext);
+
     for (const std::unique_ptr<Ast::Statement>& statement : statements)
-        statement->CodeGeneration();
+    {
+        if (statement->CodeGeneration() == nullptr)
+            Utils::Exit(ErrorCodes::FatalError);
+    }
+
+    theModule->print(llvm::outs(), nullptr);
 }

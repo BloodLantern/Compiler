@@ -32,7 +32,7 @@ llvm::Value* Variable::CodeGeneration()
     // Look this variable up in the function.
     llvm::Value* v = namedValues[m_Name];
     if (!v)
-        return RaiseError("Unknown variable name");
+        return RaiseError("Unknown variable name: {}", m_Name);
     return v;
 }
 
@@ -123,8 +123,7 @@ llvm::Function* FunctionDefinition::CodeGeneration()
     for (llvm::Argument& argument : function->args())
         namedValues[std::string{argument.getName()}] = &argument;
 
-    llvm::Value* returnValue = m_Body[0]->CodeGeneration();
-    if (returnValue)
+    if (llvm::Value* returnValue = m_Body[0]->CodeGeneration())
     {
         // Finish off the function.
         builder->CreateRet(returnValue);
@@ -151,11 +150,6 @@ TypeNamePair::TypeNamePair(std::unique_ptr<TypeName> type, std::string name)
 {
 }
 
-llvm::Value* TypeNamePair::CodeGeneration()
-{
-    return nullptr;
-}
-
 FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeNamePair> typeNamePair, std::vector<Parameter> parameters)
     : m_TypeNamePair{std::move(typeNamePair)}
     , m_Parameters{std::move(parameters)}
@@ -165,7 +159,7 @@ FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeNamePair> typeNamePair,
 llvm::Function* FunctionPrototype::CodeGeneration()
 {
     // Make the function type
-    std::vector<llvm::Type*> parameters(m_Parameters.size(), llvm::Type::getInt32Ty(*theContext));
+    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*theContext)};
     llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*theContext), parameters, false);
 
     llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());

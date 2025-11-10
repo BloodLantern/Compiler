@@ -171,7 +171,7 @@ std::unique_ptr<Ast::Expression> Parser::ParsePrimary()
 
 std::unique_ptr<Ast::Expression> Parser::ParseIdentifier()
 {
-    const std::string& identifier = std::get<std::string>(GetCurrentToken().value.value());
+    const auto& identifier = std::get<std::string>(GetCurrentToken().value.value());
 
     if (GetNextToken().type != TokenType::ParenthesisOpen)
         return std::make_unique<Ast::Variable>(identifier);
@@ -181,8 +181,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseIdentifier()
     {
         while (true)
         {
-            std::unique_ptr<Ast::Expression> argument = ParseExpression();
-            if (argument)
+            if (std::unique_ptr<Ast::Expression> argument = ParseExpression())
                 arguments.push_back(std::move(argument));
             else
                 return nullptr;
