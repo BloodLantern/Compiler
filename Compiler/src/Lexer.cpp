@@ -1,5 +1,4 @@
-﻿#include "PrecompiledHeader.hpp"
-#include "Lexer.hpp"
+﻿#include "Lexer.hpp"
 
 #include <cassert>
 

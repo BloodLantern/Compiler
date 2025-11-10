@@ -1,5 +1,4 @@
-﻿#include "PrecompiledHeader.hpp"
-#include "Parser.hpp"
+﻿#include "Parser.hpp"
 
 Parser::Parser(const std::vector<Token>& tokens)
     : m_Tokens{&tokens}

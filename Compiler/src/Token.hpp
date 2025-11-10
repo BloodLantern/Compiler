@@ -93,7 +93,7 @@ constexpr std::array SimpleTokenList
 {
     std::make_pair("<<=", TokenType::DoubleLessThanEquals),
     std::make_pair(">>=", TokenType::DoubleGreaterThanEquals),
-    std::make_pair("??=", TokenType::DoubleQuestionMarkEquals),  // NOLINT(clang-diagnostic-trigraphs)
+    std::make_pair(R"(??=)", TokenType::DoubleQuestionMarkEquals),
 
     std::make_pair("++", TokenType::DoublePlus),
     std::make_pair("--", TokenType::DoubleMinus),
@@ -453,10 +453,10 @@ using TokenValue = std::variant<std::string, int, char, Keyword>;
 
 struct Token
 {
-    TokenType type;
+    TokenType type{};
     std::optional<TokenValue> value;
 
-    const InputFile* inputFile;
+    const InputFile* inputFile = nullptr;
     Position position;
 };
 

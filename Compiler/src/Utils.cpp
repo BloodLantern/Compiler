@@ -1,5 +1,4 @@
-﻿#include "PrecompiledHeader.hpp"
-#include "Utils.hpp"
+﻿#include "Utils.hpp"
 
 void Utils::Exit(ErrorCodes code)
 {

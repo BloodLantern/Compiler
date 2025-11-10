@@ -1,5 +1,4 @@
-﻿#include "PrecompiledHeader.hpp"
-#include "AbstractSyntaxTree.hpp"
+﻿#include "AbstractSyntaxTree.hpp"
 
 using namespace Ast;
 

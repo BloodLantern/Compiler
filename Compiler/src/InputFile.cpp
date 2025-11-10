@@ -1,5 +1,4 @@
-﻿#include "PrecompiledHeader.hpp"
-#include "InputFile.hpp"
+﻿#include "InputFile.hpp"
 
 #include "Utils.hpp"
 
@@ -10,6 +9,12 @@ InputFile::InputFile(const std::string_view filepath)
 
 void InputFile::ReadContents()
 {
+    if (!std::filesystem::exists(m_Filepath))
+    {
+        std::println("Input file {} doesn't exist", m_Filepath);
+        Utils::Exit(ErrorCodes::FatalError);
+    }
+
     std::ifstream input{std::string{m_Filepath}, std::ios::ate | std::ios::in};
     const std::streampos size = input.tellg();
 

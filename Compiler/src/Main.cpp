@@ -1,4 +1,3 @@
-#include "PrecompiledHeader.hpp"
 
 #include "InputFile.hpp"
 #include "Lexer.hpp"
@@ -9,11 +8,11 @@
 static std::unique_ptr<llvm::LLVMContext> TheContext;
 static std::unique_ptr<llvm::IRBuilder<>> Builder;
 static std::unique_ptr<llvm::Module> TheModule;
-static std::unordered_map<std::string, llvm::Value *> NamedValues;
+static std::unordered_map<std::string, llvm::Value*> NamedValues;
 
 int main()
 {
-    std::println(std::cout, "Working directory: {}", std::filesystem::current_path().generic_string());
+    std::println("Working directory: {}", std::filesystem::current_path().generic_string());
     std::cout.flush();
 
     InputFile inputFile{"example.txt"};
@@ -30,28 +29,30 @@ int main()
 
     for (const Token& token : tokens)
     {
-        std::print(std::cout, "{}", magic_enum::enum_name(token.type));
+        std::print("{}", magic_enum::enum_name(token.type));
 
         switch (token.type)
         {
             case TokenType::Identifier:
             case TokenType::LiteralString:
-                std::print(std::cout, "(\"{}\")", std::get<std::string>(token.value.value()));
+                std::print("(\"{}\")", std::get<std::string>(token.value.value()));
                 break;
 
             case TokenType::LiteralInteger:
-                std::print(std::cout, "({})", std::get<int>(token.value.value()));
+                std::print("({})", std::get<int>(token.value.value()));
                 break;
 
             case TokenType::LiteralCharacter:
-                std::print(std::cout, "({:?})", std::get<char>(token.value.value()));
+                std::print("({:?})", std::get<char>(token.value.value()));
                 break;
 
             case TokenType::Keyword:
-                std::print(std::cout, "({})", magic_enum::enum_name(std::get<Keyword>(token.value.value())));
+                std::print("({})", magic_enum::enum_name(std::get<Keyword>(token.value.value())));
                 break;
 
             case TokenType::Semicolon:
+            case TokenType::CurlyBraceOpen:
+            case TokenType::CurlyBraceClose:
                 std::println(std::cout);
                 break;
 
@@ -60,7 +61,7 @@ int main()
         }
 
         if (token.type != TokenType::Semicolon)
-            std::print(std::cout, " ");
+            std::print(" ");
     }
 
     std::println(std::cout);
