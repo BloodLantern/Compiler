@@ -2,32 +2,43 @@
 
 using namespace Ast;
 
-Character::Character(const char value)
+Scope::Scope(std::vector<std::unique_ptr<Statement>> body, const bool isFunctionLevel)
+    : m_Body{std::move(body)}
+    , m_IsFunctionLevel{isFunctionLevel}
+{
+}
+
+llvm::Value* Scope::GenerateCode()
+{
+    return m_Body[0]->GenerateCode(); // TODO - Handle multiple statements in scope body
+}
+
+LiteralCharacter::LiteralCharacter(const char value)
     : m_Value{value}
 {
 }
 
-llvm::Value* Character::CodeGeneration()
+llvm::Value* LiteralCharacter::GenerateCode()
 {
-    return llvm::ConstantInt::get(*theContext, llvm::APInt{8, static_cast<unsigned int>(m_Value)});
+    return llvm::ConstantInt::get(*theContext, llvm::APInt{8, static_cast<uint32_t>(m_Value)});
 }
 
-String::String(std::string value)
+LiteralString::LiteralString(std::string value)
     : m_Value{std::move(value)}
 {
 }
 
-llvm::Value* String::CodeGeneration()
+llvm::Value* LiteralString::GenerateCode()
 {
     return nullptr;
 }
 
-Variable::Variable(std::string name)
+LocalVariable::LocalVariable(std::string name)
     : m_Name{std::move(name)}
 {
 }
 
-llvm::Value* Variable::CodeGeneration()
+llvm::Value* LocalVariable::GenerateCode()
 {
     // Look this variable up in the function.
     llvm::Value* v = namedValues[m_Name];
@@ -43,10 +54,16 @@ Operation::Operation(const Operator operatorType, std::unique_ptr<Expression> lh
 {
 }
 
-llvm::Value* Operation::CodeGeneration()
+llvm::Value* Operation::GenerateCode()
 {
-    llvm::Value* lhs = m_Lhs->CodeGeneration();
-    llvm::Value* rhs = m_Rhs->CodeGeneration();
+    if (!m_Lhs)
+    {
+        assert(false && "Unhandled operation");
+        return nullptr;
+    }
+
+    llvm::Value* lhs = m_Lhs->GenerateCode();
+    llvm::Value* rhs = m_Rhs->GenerateCode();
 
     if (!lhs || !rhs)
         return nullptr;
@@ -54,13 +71,13 @@ llvm::Value* Operation::CodeGeneration()
     switch (m_OperatorType)
     {
         case Operator::Addition:
-            return builder->CreateFAdd(lhs, rhs, "addtmp");
+            return builder->CreateAdd(lhs, rhs, "addtmp");
         case Operator::Subtraction:
-            return builder->CreateFSub(lhs, rhs, "subtmp");
+            return builder->CreateSub(lhs, rhs, "subtmp");
         case Operator::Multiplication:
-            return builder->CreateFMul(lhs, rhs, "multmp");
+            return builder->CreateMul(lhs, rhs, "multmp");
         case Operator::Division:
-            return builder->CreateFDiv(lhs, rhs, "divtmp");
+            return builder->CreateSDiv(lhs, rhs, "divtmp");
         default:
             return RaiseError("Invalid binary operator");
     }
@@ -72,7 +89,7 @@ FunctionCall::FunctionCall(std::string callee, std::vector<std::unique_ptr<Expre
 {
 }
 
-llvm::Value* FunctionCall::CodeGeneration()
+llvm::Value* FunctionCall::GenerateCode()
 {
     // Look up the name in the global module table.
     llvm::Function* calleeFunction = theModule->getFunction(m_Callee);
@@ -86,7 +103,7 @@ llvm::Value* FunctionCall::CodeGeneration()
     std::vector<llvm::Value*> arguments;
     for (const std::unique_ptr<Expression>& m_Argument : m_Arguments)
     {
-        arguments.push_back(m_Argument->CodeGeneration());
+        arguments.push_back(m_Argument->GenerateCode());
         if (!arguments.back())
             return nullptr;
     }
@@ -94,19 +111,19 @@ llvm::Value* FunctionCall::CodeGeneration()
     return builder->CreateCall(calleeFunction, arguments, "calltmp");
 }
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::vector<std::unique_ptr<Statement>> body)
+FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body)
     : m_Prototype{std::move(prototype)}
     , m_Body{std::move(body)}
 {
 }
 
-llvm::Function* FunctionDefinition::CodeGeneration()
+llvm::Function* FunctionDefinition::GenerateCode()
 {
     // First, check for an existing function from a previous 'extern' declaration.
     llvm::Function* function = theModule->getFunction(m_Prototype->GetTypeNamePair()->GetName());
 
     if (!function)
-        function = m_Prototype->CodeGeneration();
+        function = m_Prototype->GenerateCode();
 
     if (!function)
         return nullptr;
@@ -123,11 +140,8 @@ llvm::Function* FunctionDefinition::CodeGeneration()
     for (llvm::Argument& argument : function->args())
         namedValues[std::string{argument.getName()}] = &argument;
 
-    if (llvm::Value* returnValue = m_Body[0]->CodeGeneration())
+    if (m_Body->GenerateCode())
     {
-        // Finish off the function.
-        builder->CreateRet(returnValue);
-
         // Validate the generated code, checking for consistency.
         // verifyFunction(*function);
 
@@ -139,24 +153,86 @@ llvm::Function* FunctionDefinition::CodeGeneration()
     return nullptr;
 }
 
-TypeName::TypeName(std::string name)
-    : m_Name{std::move(name)}
+FunctionReturn::FunctionReturn(std::unique_ptr<Expression> returnValue)
+    : m_ReturnValue{std::move(returnValue)}
 {
 }
 
-TypeNamePair::TypeNamePair(std::unique_ptr<TypeName> type, std::string name)
+llvm::Value* FunctionReturn::GenerateCode()
+{
+    if (!m_ReturnValue)
+        return builder->CreateRet(nullptr); // Return void
+
+    llvm::Value* returnValue = m_ReturnValue->GenerateCode();
+    if (!returnValue)
+        return nullptr;
+    return builder->CreateRet(returnValue);
+}
+
+TypeName::TypeName(std::variant<std::string, BuiltinType> type)
+    : m_Type{std::move(type)}
+{
+}
+
+llvm::Type* TypeName::GetLlvmType() const
+{
+    if (const std::string* value = std::get_if<std::string>(&m_Type))
+        return nullptr; // TODO - Struct types
+
+    switch (std::get<BuiltinType>(m_Type))
+    {
+        case BuiltinType::Void:
+            return llvm::Type::getVoidTy(*theContext);
+
+        case BuiltinType::Bool:
+            return llvm::Type::getInt1Ty(*theContext);
+
+        case BuiltinType::Char:
+        case BuiltinType::SByte:
+        case BuiltinType::Byte:
+            return llvm::Type::getInt8Ty(*theContext);
+
+        case BuiltinType::Short:
+        case BuiltinType::UShort:
+            return llvm::Type::getInt16Ty(*theContext);
+
+        case BuiltinType::Int:
+        case BuiltinType::UInt:
+            return llvm::Type::getInt32Ty(*theContext);
+
+        case BuiltinType::Long:
+        case BuiltinType::ULong:
+            return llvm::Type::getInt64Ty(*theContext);
+
+        case BuiltinType::String:
+            return llvm::PointerType::getUnqual(*theContext);
+    }
+
+    std::println(std::cerr,"Invalid BuiltinType value");
+    Utils::Exit(ErrorCodes::FatalError);
+}
+
+std::string_view TypeName::GetType() const
+{
+    if (const std::string* value = std::get_if<std::string>(&m_Type))
+        return *value;
+
+    return KeywordStrings.at(BuiltinTypeToKeyword(std::get<BuiltinType>(m_Type)));
+}
+
+TypeIdentifierPair::TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name)
     : m_Type{std::move(type)}
     , m_Name{std::move(name)}
 {
 }
 
-FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeNamePair> typeNamePair, std::vector<Parameter> parameters)
+FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
     : m_TypeNamePair{std::move(typeNamePair)}
     , m_Parameters{std::move(parameters)}
 {
 }
 
-llvm::Function* FunctionPrototype::CodeGeneration()
+llvm::Function* FunctionPrototype::GenerateCode()
 {
     // Make the function type
     const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*theContext)};

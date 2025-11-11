@@ -2,7 +2,10 @@
 
 void Utils::Exit(ErrorCodes code)
 {
-    std::println(std::cout, "Exiting early with code {} ({})", static_cast<int>(code), magic_enum::enum_name(code));
+    std::cout.flush();
+    std::cerr.flush();
+
+    std::println("Exiting early with code {0:d} ({0})", code);
 
     exit(static_cast<int>(code));  // NOLINT(concurrency-mt-unsafe)
 }

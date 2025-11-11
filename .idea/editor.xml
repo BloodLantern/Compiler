@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="BackendCodeEditorSettings">
+    <option name="/Default/CodeInspection/CppInitialization/PreferUniformInitializationInNSDMIs/@EntryValue" value="true" type="bool" />
+    <option name="/Default/CodeInspection/CppInitialization/UseUniformInitializationInMemberInitializers/@EntryValue" value="true" type="bool" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CDeclarationWithImplicitIntType/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CommentTypo/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=ConstevalIfIsAlwaysConstant/@EntryIndexedValue" value="WARNING" type="string" />
@@ -207,7 +209,7 @@
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppTemplateParameterShadowing/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppThrowExpressionCanBeReplacedWithRethrow/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppTooWideScope/@EntryIndexedValue" value="SUGGESTION" type="string" />
-    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppTooWideScopeInitStatement/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
+    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppTooWideScopeInitStatement/@EntryIndexedValue" value="INFO" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppTypeAliasNeverUsed/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUninitializedDependentBaseClass/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUninitializedNonStaticDataMember/@EntryIndexedValue" value="WARNING" type="string" />
@@ -220,8 +222,8 @@
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUnusedIncludeDirective/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAlgorithmWithCount/@EntryIndexedValue" value="SUGGESTION" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAssociativeContains/@EntryIndexedValue" value="SUGGESTION" type="string" />
-    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAuto/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
-    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAutoForNumeric/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
+    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAuto/@EntryIndexedValue" value="HINT" type="string" />
+    <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseAutoForNumeric/@EntryIndexedValue" value="HINT" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseElementsView/@EntryIndexedValue" value="SUGGESTION" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseEraseAlgorithm/@EntryIndexedValue" value="SUGGESTION" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=CppUseFamiliarTemplateSyntaxForGenericLambdas/@EntryIndexedValue" value="SUGGESTION" type="string" />
@@ -244,5 +246,8 @@
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=IfStdIsConstantEvaluatedCanBeReplaced/@EntryIndexedValue" value="SUGGESTION" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=StdIsConstantEvaluatedWillAlwaysEvaluateToConstant/@EntryIndexedValue" value="WARNING" type="string" />
     <option name="/Default/CodeInspection/Highlighting/InspectionSeverities/=StringLiteralTypo/@EntryIndexedValue" value="DO_NOT_SHOW" type="string" />
+    <option name="/Default/CodeStyle/CodeFormatting/CppFormatting/CASE_BLOCK_BRACES/@EntryValue" value="NEXT_LINE" type="string" />
+    <option name="/Default/CodeStyle/CodeFormatting/CppFormatting/INDENT_CASE_FROM_SWITCH/@EntryValue" value="true" type="bool" />
+    <option name="/Default/CodeStyle/CodeFormatting/CppFormatting/LINKAGE_SPECIFICATION_BRACES/@EntryValue" value="NEXT_LINE" type="string" />
   </component>
 </project>

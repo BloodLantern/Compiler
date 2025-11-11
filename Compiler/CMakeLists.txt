@@ -21,6 +21,9 @@ add_executable (Compiler
         src/Token.hpp
         src/Utils.cpp
         src/Utils.hpp
+        src/Keyword.hpp
+        src/Operator.hpp
+        src/BuiltinType.hpp
 )
 
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -56,7 +59,7 @@ target_precompile_headers(Compiler PRIVATE
 )
 
 # Link against necessary LLVM libraries
-llvm_map_components_to_libnames(llvm_libs core support irreader)
+llvm_map_components_to_libnames(llvm_libs Core Support IRReader)
 
 # Link all external libraries
 target_link_libraries(Compiler ${llvm_libs} magic_enum::magic_enum)

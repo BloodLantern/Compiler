@@ -1,6 +1,7 @@
 ﻿#pragma once
 
 #include "Globals.hpp"
+#include "Operator.hpp"
 #include "Token.hpp"
 #include "Utils.hpp"
 
@@ -13,7 +14,7 @@ namespace Ast
         virtual ~Statement() = default;
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
 
-        virtual llvm::Value* CodeGeneration() = 0;
+        virtual llvm::Value* GenerateCode() = 0;
 
     protected:
         template <typename T = llvm::Value, typename... Args>
@@ -24,13 +25,28 @@ namespace Ast
     {
     };
 
-    template <std::integral NumberType>
-    class Number : public Expression
+    class Scope : public Statement
     {
     public:
-        explicit Number(NumberType value);
+        Scope(std::vector<std::unique_ptr<Statement>> body, bool isFunctionLevel);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
+
+        GETTER_M(const std::vector<std::unique_ptr<Statement>>&, Body)
+        GETTER_M(bool, IsFunctionLevel)
+
+    private:
+        std::vector<std::unique_ptr<Statement>> m_Body;
+        bool m_IsFunctionLevel;
+    };
+
+    template <std::integral NumberType>
+    class LiteralNumber : public Expression
+    {
+    public:
+        explicit LiteralNumber(NumberType value);
+
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(NumberType, Value)
 
@@ -38,12 +54,12 @@ namespace Ast
         NumberType m_Value;
     };
 
-    class Character : public Expression
+    class LiteralCharacter : public Expression
     {
     public:
-        explicit Character(char value);
+        explicit LiteralCharacter(char value);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(char, Value)
 
@@ -51,12 +67,12 @@ namespace Ast
         char m_Value;
     };
 
-    class String : public Expression
+    class LiteralString : public Expression
     {
     public:
-        explicit String(std::string value);
+        explicit LiteralString(std::string value);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(const std::string&, Value)
 
@@ -64,12 +80,12 @@ namespace Ast
         std::string m_Value;
     };
 
-    class Variable : public Expression
+    class LocalVariable : public Expression
     {
     public:
-        explicit Variable(std::string name);
+        explicit LocalVariable(std::string name);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(const std::string&, Name)
 
@@ -82,7 +98,7 @@ namespace Ast
     public:
         Operation(Operator operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(Operator, OperatorType)
         GETTER_M(const std::unique_ptr<Expression>&, Lhs)
@@ -98,7 +114,7 @@ namespace Ast
     public:
         FunctionCall(std::string callee, std::vector<std::unique_ptr<Expression>> arguments);
 
-        llvm::Value* CodeGeneration() override;
+        llvm::Value* GenerateCode() override;
 
         GETTER_M(const std::string&, Callee)
         GETTER_M(const std::vector<std::unique_ptr<Expression>>&, Arguments)
@@ -112,19 +128,23 @@ namespace Ast
     class TypeName
     {
     public:
-        explicit TypeName(std::string name);
+        explicit TypeName(std::variant<std::string, BuiltinType> type);
 
-        GETTER_M(const std::string&, Name)
+        ATTRIBUTE_NODISCARD
+        llvm::Type* GetLlvmType() const;
+
+        ATTRIBUTE_NODISCARD
+        std::string_view GetType() const;
 
     private:
-        std::string m_Name;
+        std::variant<std::string, BuiltinType> m_Type;
     };
 
     /// @brief Represents a combination of a type and a name.
-    class TypeNamePair
+    class TypeIdentifierPair
     {
     public:
-        explicit TypeNamePair(std::unique_ptr<TypeName> type, std::string name);
+        explicit TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name);
 
         GETTER_M(const std::unique_ptr<TypeName>&, Type)
         GETTER_M(const std::string&, Name)
@@ -138,17 +158,17 @@ namespace Ast
     class FunctionPrototype : public Statement
     {
     public:
-        using Parameter = std::unique_ptr<TypeNamePair>;
+        using Parameter = std::unique_ptr<TypeIdentifierPair>;
 
-        FunctionPrototype(std::unique_ptr<TypeNamePair> typeNamePair, std::vector<Parameter> parameters);
+        FunctionPrototype(std::unique_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters);
 
-        llvm::Function* CodeGeneration() override;
+        llvm::Function* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<TypeNamePair>&, TypeNamePair)
+        GETTER_M(const std::unique_ptr<TypeIdentifierPair>&, TypeNamePair)
         GETTER_M(const std::vector<Parameter>&, Parameters)
 
     private:
-        std::unique_ptr<TypeNamePair> m_TypeNamePair;
+        std::unique_ptr<TypeIdentifierPair> m_TypeNamePair;
         std::vector<Parameter> m_Parameters;
     };
 
@@ -156,16 +176,29 @@ namespace Ast
     class FunctionDefinition : public Statement
     {
     public:
-        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::vector<std::unique_ptr<Statement>> body);
+        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body);
 
-        llvm::Function* CodeGeneration() override;
+        llvm::Function* GenerateCode() override;
 
         GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
-        GETTER_M(const std::vector<std::unique_ptr<Statement>>&, Body)
+        GETTER_M(const std::unique_ptr<Scope>&, Body)
 
     private:
         std::unique_ptr<FunctionPrototype> m_Prototype;
-        std::vector<std::unique_ptr<Statement>> m_Body;
+        std::unique_ptr<Scope> m_Body;
+    };
+
+    class FunctionReturn : public Statement
+    {
+    public:
+        explicit FunctionReturn(std::unique_ptr<Expression> returnValue);
+
+        llvm::Value* GenerateCode() override;
+
+        GETTER_M(const std::unique_ptr<Expression>&, ReturnValue)
+
+    private:
+        std::unique_ptr<Expression> m_ReturnValue;
     };
 }
 
@@ -186,13 +219,13 @@ namespace Ast
     }
 
     template <std::integral NumberType>
-    Number<NumberType>::Number(NumberType value)
+    LiteralNumber<NumberType>::LiteralNumber(NumberType value)
         : m_Value{value}
     {
     }
 
     template <std::integral NumberType>
-    llvm::Value* Number<NumberType>::CodeGeneration()
+    llvm::Value* LiteralNumber<NumberType>::GenerateCode()
     {
         if constexpr (std::is_same_v<NumberType, int>)
             return llvm::ConstantInt::get(*theContext, llvm::APInt(32, m_Value, true));

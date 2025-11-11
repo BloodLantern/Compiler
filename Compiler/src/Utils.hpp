@@ -107,6 +107,9 @@ namespace Utils
 
     ATTRIBUTE_NORETURN
     void Exit(ErrorCodes code);
+
+    template <typename... Args>
+    int SystemCommand(const std::string& format, Args&&... args);
 }
 
 // ReSharper disable CppClangTidyCertDcl58Cpp
@@ -116,25 +119,31 @@ namespace std
 }
 // ReSharper enable CppClangTidyCertDcl58Cpp
 
+// Start of Utils.inl
+
+namespace Utils
+{
+    template <typename ... Args>
+    int SystemCommand(const std::string& format, Args&&... args)
+    {
+        return std::system(std::vformat(format, std::make_format_args(args...)).c_str());
+    }
+}
+
 /// @brief @c std::formatter template specialization for any @c enum type.
 /// @details This prints the @c enum value as a string using @c magic_enum::enum_name(), or as an integer if the @c d format is used.
 template <Utils::Enum EnumT>
 struct std::formatter<EnumT> // NOLINT(*-dcl58-cpp)
 {
     /// @brief Parses the input formatting options.
-    template <class ParseContext>
-    constexpr ParseContext::iterator parse(ParseContext& ctx)
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context& ctx)
     {
         auto it = ctx.begin();
         if (it == ctx.end())
             return it;
 
-        if (*it == ':')
+        if (*it == 'd')
         {
-            ++it;
-            if (*it != 'd')
-                throw std::format_error{"Invalid format arguments for enum"};
-
             m_PrintAsInteger = true;
             ++it;
         }
@@ -146,17 +155,12 @@ struct std::formatter<EnumT> // NOLINT(*-dcl58-cpp)
     }
 
     /// @brief Formats a string using the given @c enum value, according to the given options in the parse function.
-    template <class FormatContext>
+    template <typename FormatContext>
     FormatContext::iterator format(const EnumT& e, FormatContext& ctx) const
     {
-        std::ostringstream out;
-
         if (m_PrintAsInteger)
-            out << static_cast<std::underlying_type_t<EnumT>>(e);
-        else
-            out << magic_enum::enum_name(e);
-
-        return std::ranges::copy(std::move(out).str(), ctx.out()).out;
+            return std::format_to(ctx.out(), "{}", static_cast<std::underlying_type_t<EnumT>>(e));
+        return std::format_to(ctx.out(), "{}", magic_enum::enum_name(e));
     }
 
 private:

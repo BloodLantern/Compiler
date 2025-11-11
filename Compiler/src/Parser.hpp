@@ -2,6 +2,7 @@
 
 #include "AbstractSyntaxTree.hpp"
 #include "Lexer.hpp"
+#include "Operator.hpp"
 
 class Parser
 {
@@ -10,6 +11,7 @@ public:
 
     std::unique_ptr<Ast::Expression> ParseExpression();
     std::unique_ptr<Ast::Statement> ParseTopLevelStatement();
+    /// @brief Parse a top-level variable or function declaration.
     std::unique_ptr<Ast::Statement> ParseTopLevelDeclaration();
     std::unique_ptr<Ast::Statement> ParseFunctionLevelStatement();
     void ParseAll(std::vector<std::unique_ptr<Ast::Statement>>& output);
@@ -39,10 +41,16 @@ private:
     std::unique_ptr<Ast::Expression> ParseLiteral();
     std::unique_ptr<Ast::Expression> ParseOperationRhs(int expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
     std::unique_ptr<Ast::TypeName> ParseType();
-    std::unique_ptr<Ast::TypeNamePair> ParseTypeNamePair();
+    std::unique_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
 
-    std::unique_ptr<Ast::Statement> ParseVariableDeclaration();
-    std::unique_ptr<Ast::Statement> ParseFunction();
+    using StatementParseFunction = std::unique_ptr<Ast::Statement>(Parser::*)();
+    std::unique_ptr<Ast::Scope> ParseScope(StatementParseFunction statementParseFunction);
+    std::unique_ptr<Ast::Scope> ParseTopLevelScope();
+    std::unique_ptr<Ast::Scope> ParseFunctionLevelScope();
+
+    std::unique_ptr<Ast::Statement> ParseVariableDeclaration(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair);
+    std::unique_ptr<Ast::Statement> ParseFunction(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair);
+    void ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Parameter>& output);
     std::unique_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();
     std::unique_ptr<Ast::FunctionDefinition> ParseFunctionDefinition();
 

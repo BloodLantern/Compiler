@@ -1,11 +1,14 @@
 
-int main(int a, int b, int c, int d)
+int Sum(int a, int b)
 {
-    a + b * c / d;
+    return a + b;
+}
+
+int main()
+{
+    return Sum(10, 2) * 3 / 1;
 
     //value = Func(Func(17), value);
-
-    //return 0;
 }
 
 /*int value = -91;

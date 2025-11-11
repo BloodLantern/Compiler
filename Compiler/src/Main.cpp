@@ -16,7 +16,7 @@ int main()
     std::vector<Token> tokens;
     lexer.ParseAll(tokens);
 
-    Lexer::PrintDebug(tokens);
+    // Lexer::PrintDebug(tokens);
 
     if (lexer.GetFailure())
         Utils::Exit(ErrorCodes::FatalError);
@@ -37,13 +37,37 @@ int main()
 
     theContext = std::make_unique<llvm::LLVMContext>();
     builder = std::make_unique<llvm::IRBuilder<>>(*theContext);
-    theModule = std::make_unique<llvm::Module>("Example module", *theContext);
+    theModule = std::make_unique<llvm::Module>(inputFile.GetFilepath(), *theContext);
 
     for (const std::unique_ptr<Ast::Statement>& statement : statements)
     {
-        if (statement->CodeGeneration() == nullptr)
+        if (statement->GenerateCode() == nullptr)
             Utils::Exit(ErrorCodes::FatalError);
     }
 
-    theModule->print(llvm::outs(), nullptr);
+    constexpr std::string_view IrOut = "out.ll";
+
+    std::error_code error;
+    llvm::raw_fd_ostream out{IrOut, error};
+    if (error)
+    {
+        std::println(std::cerr, "Couldn't open file {} for writing", IrOut);
+        Utils::Exit(ErrorCodes::FatalError);
+    }
+    theModule->print(out, nullptr);
+
+    int lliResult = Utils::SystemCommand("lli {}", IrOut);
+    if (lliResult == 1)
+    {
+        std::println(std::cerr, "An error occurred during JIT compilation: lli exited with code {}", lliResult);
+        Utils::Exit(ErrorCodes::FatalError);
+    }
+
+    std::println("JIT compiled program exited with code {}", lliResult);
+
+    /*if (int llcResult = Utils::SystemCommand("llc {}", IrOut))
+    {
+        std::println(std::cerr, "An error occurred during static compilation: llc exited with code {}", llcResult);
+        Utils::Exit(ErrorCodes::FatalError);
+    }*/
 }
