@@ -186,7 +186,7 @@ std::unique_ptr<Ast::Expression> Parser::ParsePrimary()
     const Token& token = GetCurrentToken();
 
     if (IsTokenOperator(token.type))
-        return ParseOperationRhs(-1, nullptr);
+        return ParseOperationRhs(-1, nullptr); // Single-operand operation (e.g., dereference)
 
     switch (token.type)
     {

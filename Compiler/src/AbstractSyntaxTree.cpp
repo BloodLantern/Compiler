@@ -79,7 +79,7 @@ llvm::Value* Operation::GenerateCode()
         case Operator::Division:
             return builder->CreateSDiv(lhs, rhs, "divtmp");
         default:
-            return RaiseError("Invalid binary operator");
+            return RaiseError("Invalid binary operator: {}", m_OperatorType);
     }
 }
 
@@ -135,7 +135,7 @@ llvm::Function* FunctionDefinition::GenerateCode()
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*theContext, "entry", function);
     builder->SetInsertPoint(block);
 
-    // Record the function arguments in the NamedValues map.
+    // Record the function arguments in the namedValues map.
     namedValues.clear();
     for (llvm::Argument& argument : function->args())
         namedValues[std::string{argument.getName()}] = &argument;

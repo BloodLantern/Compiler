@@ -6,9 +6,7 @@ int Sum(int a, int b)
 
 int main()
 {
-    return Sum(10, 2) * 3 / 1;
-
-    //value = Func(Func(17), value);
+    return Sum(Sum(5, 4), 2) * 3 / 1;
 }
 
 /*int value = -91;
