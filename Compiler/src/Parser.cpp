@@ -111,14 +111,14 @@ void Parser::SkipTokens(const size_t count)
     m_Index += count;
 }
 
-std::optional<Operator> Parser::ParseCurrentOperator()
+std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::Expression>& lhs)
 {
     const Token& current = GetCurrentToken();
 
     if (!IsTokenOperator(current.type))
         return {};
 
-    const Token* previous = m_Index == 0 ? nullptr : &(*m_Tokens)[m_Index - 1];
+    const bool hasPrevious = lhs || (m_Index == 0 ? false : &(*m_Tokens)[m_Index - 1] != nullptr);
     const Token* next = m_Index == m_Tokens->size() - 1 ? nullptr : &(*m_Tokens)[m_Index + 1];
 
     const auto InvalidToken = [current, this] -> std::optional<Operator>
@@ -127,13 +127,13 @@ std::optional<Operator> Parser::ParseCurrentOperator()
         return {};
     };
 
-    if (!previous || !next)
+    if (!hasPrevious || !next)
         return InvalidToken();
 
     switch (current.type)
     {
         case TokenType::Dot:
-            if (previous->type == TokenType::Identifier)
+            if (hasPrevious)
             {
                 if (next->type == TokenType::Identifier)
                     return Operator::MemberAccessDot;
@@ -143,7 +143,7 @@ std::optional<Operator> Parser::ParseCurrentOperator()
             return InvalidToken();
 
         case TokenType::MinusGreaterThan:
-            if (previous->type == TokenType::Identifier)
+            if (hasPrevious)
             {
                 if (next->type == TokenType::Identifier)
                     return Operator::MemberAccessArrow;
@@ -153,26 +153,26 @@ std::optional<Operator> Parser::ParseCurrentOperator()
             return InvalidToken();
 
         case TokenType::Star:
-            if (previous->type != TokenType::Identifier && previous->type != TokenType::LiteralInteger)
+            if (!hasPrevious)
                 return Operator::Dereference;
             return Operator::Multiplication;
 
         case TokenType::DoublePlus:
-            if (previous->type == TokenType::Identifier)
+            if (hasPrevious)
                 return Operator::PostIncrement;
             if (next->type == TokenType::Identifier)
                 return Operator::PreIncrement;
             return InvalidToken();
 
         case TokenType::DoubleMinus:
-            if (previous->type == TokenType::Identifier)
+            if (hasPrevious)
                 return Operator::PostDecrement;
             if (next->type == TokenType::Identifier)
                 return Operator::PreDecrement;
             return InvalidToken();
 
         case TokenType::Ampersand:
-            if (previous->type != TokenType::Identifier && previous->type != TokenType::LiteralInteger)
+            if (!hasPrevious)
                 return Operator::AddressOf;
             return Operator::BinaryAnd;
 
@@ -287,7 +287,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const int expressionP
 {
     while (true)
     {
-        const std::optional<Operator> optionalOperator = ParseCurrentOperator();
+        const std::optional<Operator> optionalOperator = ParseCurrentOperator(lhs);
         if (!optionalOperator.has_value())
             return lhs;
 
@@ -303,7 +303,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const int expressionP
         if (!rhs)
             return nullptr;
 
-        const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator();
+        const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator(nullptr);
         const int nextOperatorPrecedence = nextOptionalOperator.has_value() ? GetOperatorPrecedence(nextOptionalOperator.value()) : -1;
 
         if (opPrecedence < nextOperatorPrecedence)

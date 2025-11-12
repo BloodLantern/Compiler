@@ -6,7 +6,7 @@ int Sum(int a, int b)
 
 int main()
 {
-    return Sum(Sum(5, 4), 2) * 3 / 1;
+    return Sum(Sum(5, 4), 2) * 3 / 0;
 }
 
 /*int value = -91;

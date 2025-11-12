@@ -33,7 +33,7 @@ private:
     /// @brief Parses the current token as an operator.
     /// @return If the current token isn't an operator (as of @c IsTokenOperator()), returns an empty optional.
     /// Otherwise, returns the corresponding operator based on the previous and next tokens.
-    std::optional<Operator> ParseCurrentOperator();
+    std::optional<Operator> ParseCurrentOperator(const std::unique_ptr<Ast::Expression>& lhs);
 
     std::unique_ptr<Ast::Expression> ParsePrimary();
     std::unique_ptr<Ast::Expression> ParseIdentifier();
