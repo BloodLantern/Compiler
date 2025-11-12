@@ -14,7 +14,7 @@ public:
     /// @brief Parse a top-level variable or function declaration.
     std::unique_ptr<Ast::Statement> ParseTopLevelDeclaration();
     std::unique_ptr<Ast::Statement> ParseFunctionLevelStatement();
-    void ParseAll(std::vector<std::unique_ptr<Ast::Statement>>& output);
+    std::unique_ptr<Ast::Scope> ParseAll();
 
     ATTRIBUTE_NODISCARD
     const Token& GetCurrentToken() const;
@@ -43,9 +43,11 @@ private:
     std::unique_ptr<Ast::TypeName> ParseType();
     std::unique_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
 
-    using StatementParseFunction = std::unique_ptr<Ast::Statement>(Parser::*)();
-    std::unique_ptr<Ast::Scope> ParseScope(StatementParseFunction statementParseFunction);
+    std::unique_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
+    /// @brief Parses a top-level scope such as namespaces or type definitions
     std::unique_ptr<Ast::Scope> ParseTopLevelScope();
+    /// @brief Parses a function-level scope defined by either a wide arrow for a single-statement scope,
+    /// or curly braces for multi-statement scopes.
     std::unique_ptr<Ast::Scope> ParseFunctionLevelScope();
 
     std::unique_ptr<Ast::Statement> ParseVariableDeclaration(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair);

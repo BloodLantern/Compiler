@@ -92,7 +92,7 @@
     GETTER(const type, name, internalName)
 /// @brief Defines getters for the field @p internalName, of type @p type, with the name @c Get##name.
 /// One getter is @c const and returns a @c const value.
-#define GETTER_NON_CONST_M(type, name, internalName) GETTER_NON_CONST(type, name, m_##name)
+#define GETTER_NON_CONST_M(type, name) GETTER_NON_CONST(type, name, m_##name)
 
 #define CHAR_FORMAT_ARGUMENT(formatArgumentIndex) "{" #formatArgumentIndex ":?} (0x{" #formatArgumentIndex ":X})"
 // ReSharper enable CppClangTidyBugproneMacroParentheses

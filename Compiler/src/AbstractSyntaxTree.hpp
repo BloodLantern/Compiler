@@ -29,10 +29,12 @@ namespace Ast
     {
     public:
         Scope(std::vector<std::unique_ptr<Statement>> body, bool isFunctionLevel);
+        Scope(std::unique_ptr<Statement> body, bool isFunctionLevel);
+        Scope(bool isFunctionLevel);
 
         llvm::Value* GenerateCode() override;
 
-        GETTER_M(const std::vector<std::unique_ptr<Statement>>&, Body)
+        GETTER_NON_CONST_M(std::vector<std::unique_ptr<Statement>>&, Body)
         GETTER_M(bool, IsFunctionLevel)
 
     private:

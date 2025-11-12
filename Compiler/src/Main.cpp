@@ -17,17 +17,15 @@ int main()
     lexer.ParseAll(tokens);
 
     // Lexer::PrintDebug(tokens);
+    // std::println(std::cout);
+    // std::cout.flush();
 
     if (lexer.GetFailure())
         Utils::Exit(ErrorCodes::FatalError);
 
     Parser parser{tokens};
 
-    std::println(std::cout);
-    std::cout.flush();
-
-    std::vector<std::unique_ptr<Ast::Statement>> statements;
-    parser.ParseAll(statements);
+    std::unique_ptr<Ast::Scope> topLevelScope = parser.ParseAll();
 
     std::println(std::cout);
     std::cout.flush();
@@ -39,7 +37,7 @@ int main()
     builder = std::make_unique<llvm::IRBuilder<>>(*theContext);
     theModule = std::make_unique<llvm::Module>(inputFile.GetFilepath(), *theContext);
 
-    for (const std::unique_ptr<Ast::Statement>& statement : statements)
+    for (const std::unique_ptr<Ast::Statement>& statement : topLevelScope->GetBody())
     {
         if (statement->GenerateCode() == nullptr)
             Utils::Exit(ErrorCodes::FatalError);

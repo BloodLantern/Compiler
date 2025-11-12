@@ -6,8 +6,22 @@ int Sum(int a, int b)
 
 int main()
 {
-    return Sum(Sum(5, 4), 2) * 3 / 0;
+    return Sum(Sum(5, 4), 2) * 6 / 3;
 }
+
+/*
+void Func()
+{
+    int i;
+
+    Func2();
+
+    void Func2()
+    {
+
+    }
+}
+*/
 
 /*int value = -91;
 

@@ -8,6 +8,17 @@ Scope::Scope(std::vector<std::unique_ptr<Statement>> body, const bool isFunction
 {
 }
 
+Scope::Scope(std::unique_ptr<Statement> body, const bool isFunctionLevel)
+    : m_IsFunctionLevel{isFunctionLevel}
+{
+    m_Body.push_back(std::move(body));
+}
+
+Scope::Scope(const bool isFunctionLevel)
+    : m_IsFunctionLevel{isFunctionLevel}
+{
+}
+
 llvm::Value* Scope::GenerateCode()
 {
     return m_Body[0]->GenerateCode(); // TODO - Handle multiple statements in scope body

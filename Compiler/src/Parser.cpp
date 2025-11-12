@@ -89,11 +89,15 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
     return result;
 }
 
-void Parser::ParseAll(std::vector<std::unique_ptr<Ast::Statement>>& output)
+std::unique_ptr<Ast::Scope> Parser::ParseAll()
 {
+    auto topLevelScope = std::make_unique<Ast::Scope>(false);
+
     do
-        output.push_back(ParseTopLevelStatement());
+        topLevelScope->GetBody().push_back(ParseTopLevelStatement());
     while (GetCurrentToken().type != TokenType::EndOfFile);
+
+    return topLevelScope;
 }
 
 const Token& Parser::GetCurrentToken() const
@@ -118,26 +122,26 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::
     if (!IsTokenOperator(current.type))
         return {};
 
-    const bool hasPrevious = lhs || (m_Index == 0 ? false : &(*m_Tokens)[m_Index - 1] != nullptr);
-    const Token* next = m_Index == m_Tokens->size() - 1 ? nullptr : &(*m_Tokens)[m_Index + 1];
-
     const auto InvalidToken = [current, this] -> std::optional<Operator>
     {
-        RaiseError(current, "Invalid token");
+        RaiseError(current, "Invalid token: {}", current.type);
         return {};
     };
 
-    if (!hasPrevious || !next)
+    if (m_Index == 0 || m_Index == m_Tokens->size() - 1)
         return InvalidToken();
+
+    const bool hasPrevious = lhs != nullptr;
+    const Token& next = (*m_Tokens)[m_Index + 1];
 
     switch (current.type)
     {
         case TokenType::Dot:
             if (hasPrevious)
             {
-                if (next->type == TokenType::Identifier)
+                if (next.type == TokenType::Identifier)
                     return Operator::MemberAccessDot;
-                if (next->type == TokenType::Star)
+                if (next.type == TokenType::Star)
                     return Operator::PointerToMemberDot;
             }
             return InvalidToken();
@@ -145,9 +149,9 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::
         case TokenType::MinusGreaterThan:
             if (hasPrevious)
             {
-                if (next->type == TokenType::Identifier)
+                if (next.type == TokenType::Identifier)
                     return Operator::MemberAccessArrow;
-                if (next->type == TokenType::Star)
+                if (next.type == TokenType::Star)
                     return Operator::PointerToMemberArrow;
             }
             return InvalidToken();
@@ -160,14 +164,14 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::
         case TokenType::DoublePlus:
             if (hasPrevious)
                 return Operator::PostIncrement;
-            if (next->type == TokenType::Identifier)
+            if (next.type == TokenType::Identifier)
                 return Operator::PreIncrement;
             return InvalidToken();
 
         case TokenType::DoubleMinus:
             if (hasPrevious)
                 return Operator::PostDecrement;
-            if (next->type == TokenType::Identifier)
+            if (next.type == TokenType::Identifier)
                 return Operator::PreDecrement;
             return InvalidToken();
 
@@ -362,29 +366,47 @@ std::unique_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
     return std::make_unique<Ast::TypeIdentifierPair>(std::move(type), std::get<std::string>(name.value.value()));
 }
 
-std::unique_ptr<Ast::Scope> Parser::ParseScope(const StatementParseFunction statementParseFunction)
+std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 {
-    assert(GetCurrentToken().type == TokenType::CurlyBraceOpen);
+    switch (GetCurrentToken().type)
+    {
+        case TokenType::EqualsGreaterThan:
+            if (!isFunctionLevel)
+                return RaiseError<Ast::Scope>("Expected '{' for top-level scope, got '=>'");
 
-    SkipTokens(1); // Skip '{'
+            SkipTokens(1); // Skip '=>'
 
-    std::vector<std::unique_ptr<Ast::Statement>> body;
-    while (GetCurrentToken().type != TokenType::CurlyBraceClose)
-        body.push_back((this->*statementParseFunction)());
+            return std::make_unique<Ast::Scope>(ParseFunctionLevelStatement(), true);
 
-    SkipTokens(1); // Skip '}'
+        case TokenType::CurlyBraceOpen:
+        {
+            SkipTokens(1); // Skip '{'
 
-    return std::make_unique<Ast::Scope>(std::move(body), statementParseFunction == &Parser::ParseFunctionLevelStatement);
+            const auto statementParseFunction = isFunctionLevel ? &Parser::ParseFunctionLevelStatement : &Parser::ParseTopLevelStatement;
+
+            std::vector<std::unique_ptr<Ast::Statement>> body;
+            while (GetCurrentToken().type != TokenType::CurlyBraceClose)
+                body.push_back((this->*statementParseFunction)());
+
+            SkipTokens(1); // Skip '}'
+
+            return std::make_unique<Ast::Scope>(std::move(body), isFunctionLevel);
+        }
+
+        default:
+            return RaiseError<Ast::Scope>("Expected '{' or '=>' for scope, got {}", GetCurrentToken().type);
+    }
+
 }
 
 std::unique_ptr<Ast::Scope> Parser::ParseTopLevelScope()
 {
-    return ParseScope(&Parser::ParseTopLevelDeclaration);
+    return ParseScope(false);
 }
 
 std::unique_ptr<Ast::Scope> Parser::ParseFunctionLevelScope()
 {
-    return ParseScope(&Parser::ParseFunctionLevelStatement);
+    return ParseScope(true);
 }
 
 std::unique_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair)
@@ -417,7 +439,8 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
         case TokenType::Semicolon:
             return prototype;
 
-        case TokenType::CurlyBraceOpen:
+        case TokenType::CurlyBraceOpen: // Multi-statement function
+        case TokenType::EqualsGreaterThan: // Single-statement function
             return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 
         default:
