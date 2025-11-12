@@ -7,18 +7,30 @@
 
 namespace Ast
 {
+    class Scope;
+
+    inline Scope* currentScope = nullptr;
+
     class Statement
     {
     public:
-        Statement() = default;
+        Statement();
         virtual ~Statement() = default;
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
 
         virtual llvm::Value* GenerateCode() = 0;
 
+        ATTRIBUTE_NODISCARD
+        llvm::Value* LookupIdentifier(std::string_view name) const;
+
+        GETTER_M(Scope*, ParentScope)
+
     protected:
         template <typename T = llvm::Value, typename... Args>
         T* RaiseError(const std::string& message, Args&&... args);
+
+    private:
+        Scope* m_ParentScope = nullptr;
     };
 
     class Expression : public Statement
@@ -28,18 +40,23 @@ namespace Ast
     class Scope : public Statement
     {
     public:
+        using IdentifierMap = std::unordered_map<std::string_view, llvm::Value*>;
+
         Scope(std::vector<std::unique_ptr<Statement>> body, bool isFunctionLevel);
         Scope(std::unique_ptr<Statement> body, bool isFunctionLevel);
-        Scope(bool isFunctionLevel);
+        explicit Scope(bool isFunctionLevel);
 
         llvm::Value* GenerateCode() override;
 
         GETTER_NON_CONST_M(std::vector<std::unique_ptr<Statement>>&, Body)
         GETTER_M(bool, IsFunctionLevel)
+        GETTER_NON_CONST_M(IdentifierMap&, Identifiers)
 
     private:
         std::vector<std::unique_ptr<Statement>> m_Body;
         bool m_IsFunctionLevel;
+
+        IdentifierMap m_Identifiers;
     };
 
     template <std::integral NumberType>
@@ -178,16 +195,18 @@ namespace Ast
     class FunctionDefinition : public Statement
     {
     public:
-        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body);
+        using BodyType = std::variant<std::unique_ptr<Scope>, std::unique_ptr<Expression>>;
+
+        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, BodyType body);
 
         llvm::Function* GenerateCode() override;
 
         GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
-        GETTER_M(const std::unique_ptr<Scope>&, Body)
+        GETTER_M(const BodyType&, Body)
 
     private:
         std::unique_ptr<FunctionPrototype> m_Prototype;
-        std::unique_ptr<Scope> m_Body;
+        BodyType m_Body;
     };
 
     class FunctionReturn : public Statement

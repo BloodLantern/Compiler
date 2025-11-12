@@ -2,6 +2,21 @@
 
 using namespace Ast;
 
+Statement::Statement()
+    : m_ParentScope{currentScope}
+{
+}
+
+llvm::Value* Statement::LookupIdentifier(const std::string_view name) const
+{
+    if (!m_ParentScope)
+        return nullptr;
+
+    if (!m_ParentScope->GetIdentifiers().contains(name))
+        return m_ParentScope->LookupIdentifier(name);
+    return m_ParentScope->GetIdentifiers().at(name);
+}
+
 Scope::Scope(std::vector<std::unique_ptr<Statement>> body, const bool isFunctionLevel)
     : m_Body{std::move(body)}
     , m_IsFunctionLevel{isFunctionLevel}
@@ -52,7 +67,7 @@ LocalVariable::LocalVariable(std::string name)
 llvm::Value* LocalVariable::GenerateCode()
 {
     // Look this variable up in the function.
-    llvm::Value* v = namedValues[m_Name];
+    llvm::Value* v = LookupIdentifier(m_Name);
     if (!v)
         return RaiseError("Unknown variable name: {}", m_Name);
     return v;
@@ -122,7 +137,7 @@ llvm::Value* FunctionCall::GenerateCode()
     return builder->CreateCall(calleeFunction, arguments, "calltmp");
 }
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body)
+FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, BodyType body)
     : m_Prototype{std::move(prototype)}
     , m_Body{std::move(body)}
 {
@@ -151,7 +166,13 @@ llvm::Function* FunctionDefinition::GenerateCode()
     for (llvm::Argument& argument : function->args())
         namedValues[std::string{argument.getName()}] = &argument;
 
-    if (m_Body->GenerateCode())
+    if (const auto expression = std::get_if<std::unique_ptr<Expression>>(&m_Body))
+    {
+        builder->CreateRet((*expression)->GenerateCode());
+        return function;
+    }
+
+    if (std::get<std::unique_ptr<Scope>>(m_Body)->GenerateCode())
     {
         // Validate the generated code, checking for consistency.
         // verifyFunction(*function);

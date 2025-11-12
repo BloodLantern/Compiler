@@ -91,6 +91,7 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
 
 std::unique_ptr<Ast::Scope> Parser::ParseAll()
 {
+    Ast::currentScope = nullptr;
     auto topLevelScope = std::make_unique<Ast::Scope>(false);
 
     do
@@ -440,6 +441,8 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
             return prototype;
 
         case TokenType::CurlyBraceOpen: // Multi-statement function
+            return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+
         case TokenType::EqualsGreaterThan: // Single-statement function
             return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 
