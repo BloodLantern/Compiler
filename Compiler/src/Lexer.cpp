@@ -29,7 +29,7 @@ void Lexer::ParseNext()
         return;
     }
 
-    for (const std::pair<const char*, TokenType>& token : SimpleTokenList)
+    for (const std::pair<const c8*, TokenType>& token : SimpleTokenList)
     {
         if (!CheckString(token.first))
             continue;
@@ -37,7 +37,7 @@ void Lexer::ParseNext()
         if (token.second == TokenType::Slash)
         {
             // Check for a comment
-            const char nextCharacter = PeekCharacter(1);
+            const c8 nextCharacter = PeekCharacter(1);
 
             // Single-line comment
             if (nextCharacter == '/')
@@ -67,11 +67,11 @@ void Lexer::ParseNext()
     {
         case '\'':
         {
-            const char literalEndCharacter = PeekCharacter(2);
+            const c8 literalEndCharacter = PeekCharacter(2);
             if (literalEndCharacter != '\'')
             {
                 SkipCharacters(2);
-                RaiseError("Expected end of character literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
+                RaiseError("Expected end of c8acter literal, got " CHAR_FORMAT_ARGUMENT(0), literalEndCharacter);
                 return;
             }
 
@@ -86,11 +86,11 @@ void Lexer::ParseNext()
             ConsumeNextCharacter();
 
             std::string identifier;
-            BuildString(identifier, [](const char c) { return c != '"' && c != EOF; });
+            BuildString(identifier, [](const c8 c) { return c != '"' && c != EOF; });
 
             if (m_Character == EOF)
             {
-                RaiseError("Expected end of character literal, got 'EOF'");
+                RaiseError("Expected end of c8acter literal, got 'EOF'");
                 return;
             }
 
@@ -108,7 +108,7 @@ void Lexer::ParseNext()
     if (std::isdigit(m_Character))
     {
         std::string intString;
-        BuildString(intString, [](const char c) -> bool { return std::isdigit(c); });
+        BuildString(intString, [](const c8 c) -> bool { return std::isdigit(c); });
 
         m_LastToken.value = static_cast<int>(std::strtol(intString.c_str(), nullptr, 10));
         m_LastToken.type = TokenType::LiteralInteger;
@@ -136,7 +136,7 @@ void Lexer::ParseNext()
     if (m_Character == '_' || std::isalpha(m_Character))
     {
         std::string identifier;
-        BuildString(identifier, [](const char c) -> bool { return c == '_' || std::isalnum(c); });
+        BuildString(identifier, [](const c8 c) -> bool { return c == '_' || std::isalnum(c); });
 
         m_LastToken.value = std::move(identifier);
         m_LastToken.type = TokenType::Identifier;
@@ -144,7 +144,7 @@ void Lexer::ParseNext()
     }
 
     ATTRIBUTE_UNLIKELY
-    RaiseError("Invalid character: " CHAR_FORMAT_ARGUMENT(0), m_Character);
+    RaiseError("Invalid c8acter: " CHAR_FORMAT_ARGUMENT(0), m_Character);
 }
 
 void Lexer::ParseAll(std::vector<Token>& output)
@@ -178,7 +178,7 @@ void Lexer::PrintDebug(const std::vector<Token>& tokens)
             break;
 
         case TokenType::LiteralCharacter:
-            std::print("({:?})", std::get<char>(token.value.value()));
+            std::print("({:?})", std::get<c8>(token.value.value()));
             break;
 
         case TokenType::Keyword:
@@ -204,12 +204,12 @@ void Lexer::ConsumeNextCharacter()
 {
     if (m_Character == '\n')
     {
-        ++m_Position.line;
+        m_Position.line++;
         m_Position.column = 1;
     }
     else
     {
-        ++m_Position.column;
+        m_Position.column++;
     }
 
     if (FinishedReading())
@@ -234,7 +234,7 @@ void Lexer::SkipCharacters(const ptrdiff_t count)
     ConsumeNextCharacter();
 }
 
-char Lexer::PeekCharacter(const ptrdiff_t offset) const
+c8 Lexer::PeekCharacter(const ptrdiff_t offset) const
 {
     const ptrdiff_t position = m_Index + offset;
     assert(position >= 0 && std::cmp_less(position, m_InputFile->GetText().size()));
@@ -243,10 +243,10 @@ char Lexer::PeekCharacter(const ptrdiff_t offset) const
 
 void Lexer::SkipSpaces()
 {
-    SkipUntil([](const char c) { return !std::isspace(c) && c != '\0'; });
+    SkipUntil([](const c8 c) { return !std::isspace(c) && c != '\0'; });
 }
 
-void Lexer::SkipUntil(const Utils::Predicate<char>& predicate)
+void Lexer::SkipUntil(const Utils::Predicate<c8>& predicate)
 {
     while (!predicate(m_Character))
         ConsumeNextCharacter();
@@ -261,7 +261,7 @@ void Lexer::SkipUntilAfter(const std::string_view str)
         ConsumeNextCharacter();
 }
 
-void Lexer::SkipUntilAfter(const char c)
+void Lexer::SkipUntilAfter(const c8 c)
 {
     while (m_Character != c)
         ConsumeNextCharacter();
@@ -273,7 +273,7 @@ void Lexer::SkipToNextLine()
     SkipUntilAfter("\n");
 }
 
-void Lexer::BuildString(std::string& output, const Utils::Predicate<char>& predicate)
+void Lexer::BuildString(std::string& output, const Utils::Predicate<c8>& predicate)
 {
     while (predicate(m_Character))
     {

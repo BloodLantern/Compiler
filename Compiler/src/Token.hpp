@@ -1,10 +1,11 @@
 ﻿#pragma once
 
+#include "Common.hpp"
 #include "InputFile.hpp"
 #include "Position.hpp"
 #include "Keyword.hpp"
 
-enum class TokenType : uint8_t
+enum class TokenType : u8
 {
     None,
 
@@ -158,7 +159,7 @@ constexpr std::array SimpleTokenList
     std::make_pair(":", TokenType::Colon),
 };
 
-using TokenValue = std::variant<std::string, int, char, Keyword>;
+using TokenValue = std::variant<std::string, s32, c8, Keyword>;
 
 struct Token
 {

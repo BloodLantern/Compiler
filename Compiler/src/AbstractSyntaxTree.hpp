@@ -1,5 +1,6 @@
 ﻿#pragma once
 
+#include "Common.hpp"
 #include "Globals.hpp"
 #include "Operator.hpp"
 #include "Token.hpp"
@@ -10,6 +11,36 @@ namespace Ast
     class Scope;
 
     inline Scope* currentScope = nullptr;
+
+    /// @brief Helper class that represents a type name, i.e., either a builtin type such as @c int or a user-defined type.
+    class TypeName
+    {
+    public:
+        explicit TypeName(std::variant<std::string, BuiltinType> type);
+
+        ATTRIBUTE_NODISCARD
+        llvm::Type* GetLlvmType() const;
+
+        ATTRIBUTE_NODISCARD
+        std::string_view GetType() const;
+
+    private:
+        std::variant<std::string, BuiltinType> m_Type;
+    };
+
+    /// @brief Helper class that represents a combination of a type and a name.
+    class TypeIdentifierPair
+    {
+    public:
+        explicit TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name);
+
+        GETTER_M(const std::unique_ptr<TypeName>&, Type)
+        GETTER_M(const std::string&, Name)
+
+    private:
+        std::unique_ptr<TypeName> m_Type;
+        std::string m_Name;
+    };
 
     class Statement
     {
@@ -46,7 +77,11 @@ namespace Ast
         Scope(std::unique_ptr<Statement> body, bool isFunctionLevel);
         explicit Scope(bool isFunctionLevel);
 
+        /// @brief Returns the last statement's @c GenerateCode() result value.
         llvm::Value* GenerateCode() override;
+
+        ATTRIBUTE_NODISCARD
+        bool IsSingleStatement() const;
 
         GETTER_NON_CONST_M(std::vector<std::unique_ptr<Statement>>&, Body)
         GETTER_M(bool, IsFunctionLevel)
@@ -76,14 +111,14 @@ namespace Ast
     class LiteralCharacter : public Expression
     {
     public:
-        explicit LiteralCharacter(char value);
+        explicit LiteralCharacter(c8 value);
 
         llvm::Value* GenerateCode() override;
 
-        GETTER_M(char, Value)
+        GETTER_M(c8, Value)
 
     private:
-        char m_Value;
+        c8 m_Value;
     };
 
     class LiteralString : public Expression
@@ -99,10 +134,23 @@ namespace Ast
         std::string m_Value;
     };
 
-    class LocalVariable : public Expression
+    class VariableDeclaration : public Expression
     {
     public:
-        explicit LocalVariable(std::string name);
+        explicit VariableDeclaration(std::unique_ptr<TypeIdentifierPair> typeName);
+
+        llvm::Value* GenerateCode() override;
+
+        GETTER_M(const std::unique_ptr<TypeIdentifierPair>&, TypeName)
+
+    private:
+        std::unique_ptr<TypeIdentifierPair> m_TypeName;
+    };
+
+    class VariableUsage : public Expression
+    {
+    public:
+        explicit VariableUsage(std::string name);
 
         llvm::Value* GenerateCode() override;
 
@@ -143,36 +191,6 @@ namespace Ast
         std::vector<std::unique_ptr<Expression>> m_Arguments;
     };
 
-    /// @brief Represents a type name, i.e., either a builtin type such as @c int or a user-defined type.
-    class TypeName
-    {
-    public:
-        explicit TypeName(std::variant<std::string, BuiltinType> type);
-
-        ATTRIBUTE_NODISCARD
-        llvm::Type* GetLlvmType() const;
-
-        ATTRIBUTE_NODISCARD
-        std::string_view GetType() const;
-
-    private:
-        std::variant<std::string, BuiltinType> m_Type;
-    };
-
-    /// @brief Represents a combination of a type and a name.
-    class TypeIdentifierPair
-    {
-    public:
-        explicit TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name);
-
-        GETTER_M(const std::unique_ptr<TypeName>&, Type)
-        GETTER_M(const std::string&, Name)
-
-    private:
-        std::unique_ptr<TypeName> m_Type;
-        std::string m_Name;
-    };
-
     /// @brief Represents a function prototype, which captures its return type, name and its argument types and names.
     class FunctionPrototype : public Statement
     {
@@ -195,18 +213,18 @@ namespace Ast
     class FunctionDefinition : public Statement
     {
     public:
-        using BodyType = std::variant<std::unique_ptr<Scope>, std::unique_ptr<Expression>>;
-
-        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, BodyType body);
+        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body, bool isExpressionBody);
 
         llvm::Function* GenerateCode() override;
 
         GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
-        GETTER_M(const BodyType&, Body)
+        GETTER_M(const std::unique_ptr<Scope>&, Body)
+        GETTER_M(bool, IsExpressionBody)
 
     private:
         std::unique_ptr<FunctionPrototype> m_Prototype;
-        BodyType m_Body;
+        std::unique_ptr<Scope> m_Body;
+        bool m_IsExpressionBody = false;
     };
 
     class FunctionReturn : public Statement
@@ -227,7 +245,7 @@ namespace Ast
 
 namespace Ast
 {
-    template <typename T, typename ... Args>
+    template <typename T, typename... Args>
     T* Statement::RaiseError(const std::string& message, Args&&... args)
     {
         std::println(
@@ -248,7 +266,7 @@ namespace Ast
     template <std::integral NumberType>
     llvm::Value* LiteralNumber<NumberType>::GenerateCode()
     {
-        if constexpr (std::is_same_v<NumberType, int>)
+        if constexpr (std::is_same_v<NumberType, s32>)
             return llvm::ConstantInt::get(*theContext, llvm::APInt(32, m_Value, true));
         else
             static_assert(false, "Unhandled numeric type");

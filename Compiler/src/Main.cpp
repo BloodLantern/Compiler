@@ -27,7 +27,7 @@ int main()
 
     std::unique_ptr<Ast::Scope> topLevelScope = parser.ParseAll();
 
-    std::println(std::cout);
+    std::println();
     std::cout.flush();
 
     if (parser.GetFailure())
@@ -35,7 +35,7 @@ int main()
 
     theContext = std::make_unique<llvm::LLVMContext>();
     builder = std::make_unique<llvm::IRBuilder<>>(*theContext);
-    theModule = std::make_unique<llvm::Module>(inputFile.GetFilepath(), *theContext);
+    theModule = std::make_unique<llvm::Module>(inputFile.GetFilepath().generic_string(), *theContext);
 
     for (const std::unique_ptr<Ast::Statement>& statement : topLevelScope->GetBody())
     {

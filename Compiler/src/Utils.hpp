@@ -1,6 +1,8 @@
 ﻿#pragma once
 
+#include "Common.hpp"
 #include "ErrorCodes.hpp"
+#include "Position.hpp"
 
 // ReSharper disable CppClangTidyBugproneMacroParentheses
 /// @brief Creates default copy and move operations for a given @p type.
@@ -95,6 +97,17 @@
 #define GETTER_NON_CONST_M(type, name) GETTER_NON_CONST(type, name, m_##name)
 
 #define CHAR_FORMAT_ARGUMENT(formatArgumentIndex) "{" #formatArgumentIndex ":?} (0x{" #formatArgumentIndex ":X})"
+
+#define ANSI_ESC "\x1B"
+#define ANSI_OSC ANSI_ESC "]"
+#define ANSI_OSC8 ANSI_OSC "8"
+#define ANSI_TERM ANSI_ESC "\\"
+#define ANSI_CSI ANSI_ESC "["
+#define ANSI_STYLE(style) ANSI_CSI style "m"
+#define ANSI_COLOR_BLUE ANSI_STYLE("34")
+#define ANSI_STYLE_RESET ANSI_STYLE("0")
+#define ANSI_LINK(link, text) ANSI_OSC8 ";;" link ANSI_TERM text ANSI_OSC8 ";;" ANSI_TERM
+#define ANSI_FILE_LINK(filepath, text) ANSI_OSC8 ";;file:///" filepath ANSI_TERM text ANSI_OSC8 ";;" ANSI_TERM
 // ReSharper enable CppClangTidyBugproneMacroParentheses
 
 namespace Utils
@@ -110,6 +123,8 @@ namespace Utils
 
     template <typename... Args>
     int SystemCommand(const std::string& format, Args&&... args);
+
+    std::string FormatFileLink(const std::filesystem::path& filepath, const Position& position);
 }
 
 // ReSharper disable CppClangTidyCertDcl58Cpp
@@ -145,7 +160,7 @@ struct std::formatter<EnumT> // NOLINT(*-dcl58-cpp)
         if (*it == 'd')
         {
             m_PrintAsInteger = true;
-            ++it;
+            it++;
         }
 
         if (*it != '}')
@@ -165,4 +180,40 @@ struct std::formatter<EnumT> // NOLINT(*-dcl58-cpp)
 
 private:
     bool m_PrintAsInteger = false;
+};
+
+/// @file Formatter.hpp
+/// @brief Defines template specializations of @c std::formatter for external types.
+///
+/// This file also defines the Formattable concept, as it seems it isn't included in the C++23 MSVC STL.
+///
+/// In this file, we don't follow our conventions on some things because it is mostly an extension of the STL.
+///
+/// @see <a href="https://en.cppreference.com/w/cpp/utility/format/formatter">std::formatter</a>
+/// @see <a href="https://en.cppreference.com/w/cpp/utility/format/formattable">std::formattable</a>
+
+/// @brief @c std::formatter template specialization for the @c std::filesystem::path type.
+/// @see <a href="https://en.cppreference.com/w/cpp/filesystem/path">std::filesystem::path</a>
+template <>
+struct std::formatter<std::filesystem::path>
+{
+    /// @brief Parses the input formatting options.
+    constexpr std::format_parse_context::iterator parse(std::format_parse_context& ctx)
+    {
+        const auto it = ctx.begin();
+        if (it == ctx.end())
+            return it;
+
+        if (*it != '}')
+            throw std::format_error{"Invalid format arguments for std::filesystem::path"};
+
+        return it;
+    }
+
+    /// @brief Formats a string using the given instance of @c std::filesystem::path, according to the given options in the parse function.
+    template <class FormatContext>
+    FormatContext::iterator format(const std::filesystem::path& path, FormatContext& ctx) const
+    {
+        return std::format_to(ctx.out(), "{}", path.string());
+    }
 };

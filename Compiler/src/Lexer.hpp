@@ -24,21 +24,21 @@ private:
 
     Token m_LastToken{};
 
-    char m_Character = '\0';
+    c8 m_Character = '\0';
 
     bool m_Failure = false;
 
     void ConsumeNextCharacter();
     void SkipCharacters(ptrdiff_t count);
     ATTRIBUTE_NODISCARD
-    char PeekCharacter(ptrdiff_t offset) const;
+    c8 PeekCharacter(ptrdiff_t offset) const;
 
     void SkipSpaces();
-    void SkipUntil(const Utils::Predicate<char>& predicate);
+    void SkipUntil(const Utils::Predicate<c8>& predicate);
     void SkipUntilAfter(std::string_view str);
-    void SkipUntilAfter(char c);
+    void SkipUntilAfter(c8 c);
     void SkipToNextLine();
-    void BuildString(std::string& output, const Utils::Predicate<char>& predicate);
+    void BuildString(std::string& output, const Utils::Predicate<c8>& predicate);
     ATTRIBUTE_NODISCARD
     bool CheckString(std::string_view str) const;
     void HandleSimpleToken(TokenType type, size_t strSize = 1);
@@ -55,10 +55,8 @@ void Lexer::RaiseError(const std::string& message, Args&&... args)  // NOLINT(cp
 {
     std::println(
         std::cerr,
-        "{}({}, {}): Fatal error: {}",
-        m_InputFile->GetFilepath(),
-        m_Position.line,
-        m_Position.column,
+        "{}: Fatal error: {}",
+        Utils::FormatFileLink(m_InputFile->GetFilepath(), m_Position),
         std::vformat(message, std::make_format_args(args...))
     );
 

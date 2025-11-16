@@ -24,6 +24,7 @@ add_executable (Compiler
         src/Keyword.hpp
         src/Operator.hpp
         src/BuiltinType.hpp
+        src/Common.hpp
 )
 
 include_directories(${LLVM_INCLUDE_DIRS})
@@ -52,10 +53,12 @@ target_precompile_headers(Compiler PRIVATE
         <llvm/IR/LLVMContext.h>
         <llvm/IR/Module.h>
         <llvm/IR/Value.h>
+        <llvm/IR/Verifier.h>
 
         # Our headers
         "src/Attributes.hpp"
         "src/CompilerSpecific.hpp"
+        "src/Common.hpp"
 )
 
 # Link against necessary LLVM libraries

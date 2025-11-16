@@ -60,7 +60,11 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
     {
         case TokenType::Keyword:
         {
-            switch (const auto keyword = std::get<Keyword>(token.value.value()))
+            const auto keyword = std::get<Keyword>(token.value.value());
+            if (IsKeywordType(keyword))
+                return ParseVariableDeclaration(ParseTypeIdentifierPair());
+
+            switch (keyword)
             {
                 case Keyword::Return:
                     SkipTokens(1);
@@ -74,6 +78,9 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
             }
             break;
         }
+
+        case TokenType::Identifier:
+            return ParseVariableDeclaration(ParseTypeIdentifierPair());
 
         default:
             result = RaiseError("Invalid token in statement: {}", token.type);
@@ -93,10 +100,14 @@ std::unique_ptr<Ast::Scope> Parser::ParseAll()
 {
     Ast::currentScope = nullptr;
     auto topLevelScope = std::make_unique<Ast::Scope>(false);
+    // ReSharper disable once CppDFALocalValueEscapesFunction
+    Ast::currentScope = topLevelScope.get();
 
     do
         topLevelScope->GetBody().push_back(ParseTopLevelStatement());
     while (GetCurrentToken().type != TokenType::EndOfFile);
+
+    Ast::currentScope = nullptr;
 
     return topLevelScope;
 }
@@ -181,6 +192,11 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::
                 return Operator::AddressOf;
             return Operator::BinaryAnd;
 
+        case TokenType::Tilde:
+            if (hasPrevious)
+                return InvalidToken();
+            return Operator::BinaryNot;
+
         default:
             return BaseOperatorConversionLookup.at(current.type);
     }
@@ -218,7 +234,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseIdentifier()
     const auto& identifier = std::get<std::string>(GetCurrentToken().value.value());
 
     if (GetNextToken().type != TokenType::ParenthesisOpen)
-        return std::make_unique<Ast::LocalVariable>(identifier);
+        return std::make_unique<Ast::VariableUsage>(identifier);
 
     std::vector<std::unique_ptr<Ast::Expression>> arguments;
     if (GetNextToken().type != TokenType::ParenthesisClose)
@@ -269,11 +285,11 @@ std::unique_ptr<Ast::Expression> Parser::ParseLiteral()
     switch (token.type)
     {
         case TokenType::LiteralInteger:
-            result = std::make_unique<Ast::LiteralNumber<int>>(std::get<int>(token.value.value()));
+            result = std::make_unique<Ast::LiteralNumber<s32>>(std::get<s32>(token.value.value()));
             break;
 
         case TokenType::LiteralCharacter:
-            result = std::make_unique<Ast::LiteralCharacter>(std::get<char>(token.value.value()));
+            result = std::make_unique<Ast::LiteralCharacter>(std::get<c8>(token.value.value()));
             break;
 
         case TokenType::LiteralString:
@@ -288,7 +304,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseLiteral()
     return result;
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const int expressionPrecedence, std::unique_ptr<Ast::Expression> lhs)
+std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::unique_ptr<Ast::Expression> lhs)
 {
     while (true)
     {
@@ -297,7 +313,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const int expressionP
             return lhs;
 
         const Operator op = optionalOperator.value();
-        const int opPrecedence = GetOperatorPrecedence(op);
+        const s32 opPrecedence = GetOperatorPrecedence(op);
 
         if (opPrecedence < expressionPrecedence)
             return lhs;
@@ -309,7 +325,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const int expressionP
             return nullptr;
 
         const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator(nullptr);
-        const int nextOperatorPrecedence = nextOptionalOperator.has_value() ? GetOperatorPrecedence(nextOptionalOperator.value()) : -1;
+        const s32 nextOperatorPrecedence = nextOptionalOperator.has_value() ? GetOperatorPrecedence(nextOptionalOperator.value()) : -1;
 
         if (opPrecedence < nextOperatorPrecedence)
         {
@@ -372,16 +388,29 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
     switch (GetCurrentToken().type)
     {
         case TokenType::EqualsGreaterThan:
+        {
             if (!isFunctionLevel)
                 return RaiseError<Ast::Scope>("Expected '{' for top-level scope, got '=>'");
 
             SkipTokens(1); // Skip '=>'
 
-            return std::make_unique<Ast::Scope>(ParseFunctionLevelStatement(), true);
+            auto result = std::make_unique<Ast::Scope>(true);
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            Ast::currentScope = result.get();
+
+            result->GetBody().push_back(ParseTopLevelStatement());
+
+            Ast::currentScope = result->GetParentScope();
+            return result;
+        }
 
         case TokenType::CurlyBraceOpen:
         {
             SkipTokens(1); // Skip '{'
+
+            auto result = std::make_unique<Ast::Scope>(isFunctionLevel);
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            Ast::currentScope = result.get();
 
             const auto statementParseFunction = isFunctionLevel ? &Parser::ParseFunctionLevelStatement : &Parser::ParseTopLevelStatement;
 
@@ -391,7 +420,10 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 
             SkipTokens(1); // Skip '}'
 
-            return std::make_unique<Ast::Scope>(std::move(body), isFunctionLevel);
+            result->GetBody() = std::move(body);
+
+            Ast::currentScope = result->GetParentScope();
+            return result;
         }
 
         default:
@@ -434,21 +466,26 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
     ParseFunctionParameters(parameters);
 
     auto prototype = std::make_unique<Ast::FunctionPrototype>(std::move(typeNamePair), std::move(parameters));
+    bool isExpressionBody;
 
     switch (GetCurrentToken().type)
     {
         case TokenType::Semicolon:
             return prototype;
 
-        case TokenType::CurlyBraceOpen: // Multi-statement function
-            return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+        case TokenType::CurlyBraceOpen:
+            isExpressionBody = false;
+            break;
 
-        case TokenType::EqualsGreaterThan: // Single-statement function
-            return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+        case TokenType::EqualsGreaterThan:
+            isExpressionBody = true;
+            break;
 
         default:
             return RaiseError("Expected either ';' or '{' in function declaration, got {}", GetCurrentToken().type);
     }
+
+    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope(), isExpressionBody);
 }
 
 void Parser::ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Parameter>& output)
@@ -499,5 +536,5 @@ std::unique_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
     if (openBrace.type != TokenType::CurlyBraceOpen)
         return RaiseError<Ast::FunctionDefinition>("Expected '{' in function definition, got {}", openBrace.type);
 
-    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope(), false);
 }

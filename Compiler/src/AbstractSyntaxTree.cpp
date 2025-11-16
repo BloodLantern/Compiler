@@ -36,10 +36,20 @@ Scope::Scope(const bool isFunctionLevel)
 
 llvm::Value* Scope::GenerateCode()
 {
-    return m_Body[0]->GenerateCode(); // TODO - Handle multiple statements in scope body
+    for (size_t i = 0; i < m_Body.size() - 1; i++)
+    {
+        if (m_Body[i]->GenerateCode() == nullptr)
+            return nullptr;
+    }
+    return m_Body[m_Body.size() - 1]->GenerateCode();
 }
 
-LiteralCharacter::LiteralCharacter(const char value)
+bool Scope::IsSingleStatement() const
+{
+    return m_Body.size() == 1;
+}
+
+LiteralCharacter::LiteralCharacter(const c8 value)
     : m_Value{value}
 {
 }
@@ -59,14 +69,23 @@ llvm::Value* LiteralString::GenerateCode()
     return nullptr;
 }
 
-LocalVariable::LocalVariable(std::string name)
+VariableDeclaration::VariableDeclaration(std::unique_ptr<TypeIdentifierPair> typeName)
+    : m_TypeName{std::move(typeName)}
+{
+}
+
+llvm::Value* VariableDeclaration::GenerateCode()
+{
+    return RaiseError("Variable declarations are currently not supported"); // TODO - Add variable declarations support
+}
+
+VariableUsage::VariableUsage(std::string name)
     : m_Name{std::move(name)}
 {
 }
 
-llvm::Value* LocalVariable::GenerateCode()
+llvm::Value* VariableUsage::GenerateCode()
 {
-    // Look this variable up in the function.
     llvm::Value* v = LookupIdentifier(m_Name);
     if (!v)
         return RaiseError("Unknown variable name: {}", m_Name);
@@ -82,11 +101,7 @@ Operation::Operation(const Operator operatorType, std::unique_ptr<Expression> lh
 
 llvm::Value* Operation::GenerateCode()
 {
-    if (!m_Lhs)
-    {
-        assert(false && "Unhandled operation");
-        return nullptr;
-    }
+    assert(m_Lhs && "Unhandled operation");
 
     llvm::Value* lhs = m_Lhs->GenerateCode();
     llvm::Value* rhs = m_Rhs->GenerateCode();
@@ -117,12 +132,11 @@ FunctionCall::FunctionCall(std::string callee, std::vector<std::unique_ptr<Expre
 
 llvm::Value* FunctionCall::GenerateCode()
 {
-    // Look up the name in the global module table.
+    // Look up the name in the global module table
     llvm::Function* calleeFunction = theModule->getFunction(m_Callee);
     if (!calleeFunction)
         return RaiseError("Unknown function referenced");
 
-    // If argument mismatch error.
     if (calleeFunction->arg_size() != m_Arguments.size())
         return RaiseError("Incorrect number of arguments passed");
 
@@ -137,15 +151,16 @@ llvm::Value* FunctionCall::GenerateCode()
     return builder->CreateCall(calleeFunction, arguments, "calltmp");
 }
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, BodyType body)
+FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body, bool isExpressionBody)
     : m_Prototype{std::move(prototype)}
     , m_Body{std::move(body)}
+    , m_IsExpressionBody{isExpressionBody}
 {
 }
 
 llvm::Function* FunctionDefinition::GenerateCode()
 {
-    // First, check for an existing function from a previous 'extern' declaration.
+    // First, check for an existing function from a previous declaration.
     llvm::Function* function = theModule->getFunction(m_Prototype->GetTypeNamePair()->GetName());
 
     if (!function)
@@ -157,32 +172,43 @@ llvm::Function* FunctionDefinition::GenerateCode()
     if (!function->empty())
         return RaiseError<llvm::Function>("Function cannot be redefined.");
 
-    // Create a new basic block to start insertion into.
+    // Create a new basic block to start insertion into
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*theContext, "entry", function);
     builder->SetInsertPoint(block);
 
-    // Record the function arguments in the namedValues map.
-    namedValues.clear();
+    auto& identifiers = m_Body->GetIdentifiers();
+    // Record the function arguments in the identifier map
+    identifiers.clear();
     for (llvm::Argument& argument : function->args())
-        namedValues[std::string{argument.getName()}] = &argument;
+        identifiers[argument.getName().data()] = &argument;
 
-    if (const auto expression = std::get_if<std::unique_ptr<Expression>>(&m_Body))
+    bool valid = false;
+
+    if (m_IsExpressionBody)
     {
-        builder->CreateRet((*expression)->GenerateCode());
-        return function;
+        assert(m_Body->IsSingleStatement());
+
+        // There's probably a better way to do this
+        FunctionReturn ret{std::unique_ptr<Expression>{dynamic_cast<Expression*>(m_Body->GetBody()[0].get())}};
+        ret.GenerateCode();
+
+        valid = true;
     }
 
-    if (std::get<std::unique_ptr<Scope>>(m_Body)->GenerateCode())
-    {
-        // Validate the generated code, checking for consistency.
-        // verifyFunction(*function);
+    if (m_Body->GenerateCode())
+        valid = true;
 
-        return function;
+    if (!valid)
+    {
+        // Error reading body, remove function.
+        function->eraseFromParent();
+        return nullptr;
     }
 
-    // Error reading body, remove function.
-    function->eraseFromParent();
-    return nullptr;
+    // Validate the generated code, checking for consistency.
+    llvm::verifyFunction(*function);
+
+    return function;
 }
 
 FunctionReturn::FunctionReturn(std::unique_ptr<Expression> returnValue)
@@ -272,7 +298,7 @@ llvm::Function* FunctionPrototype::GenerateCode()
 
     llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());
 
-    // Set names for all arguments.
+    // Set names for all arguments
     for (size_t i = 0; i < function->arg_size(); i++)
         (function->arg_begin() + i)->setName(m_Parameters[i]->GetName());
 

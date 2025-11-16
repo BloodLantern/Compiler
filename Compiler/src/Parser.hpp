@@ -39,14 +39,14 @@ private:
     std::unique_ptr<Ast::Expression> ParseIdentifier();
     std::unique_ptr<Ast::Expression> ParseParentheses();
     std::unique_ptr<Ast::Expression> ParseLiteral();
-    std::unique_ptr<Ast::Expression> ParseOperationRhs(int expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
+    std::unique_ptr<Ast::Expression> ParseOperationRhs(s32 expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
     std::unique_ptr<Ast::TypeName> ParseType();
     std::unique_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
 
     std::unique_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
     /// @brief Parses a top-level scope such as namespaces or type definitions
     std::unique_ptr<Ast::Scope> ParseTopLevelScope();
-    /// @brief Parses a function-level scope defined by either a wide arrow for a single-statement scope,
+    /// @brief Parses a function-level scope defined by either a wide arrow for a single-statement scope
     /// or curly braces for multi-statement scopes.
     std::unique_ptr<Ast::Scope> ParseFunctionLevelScope();
 
@@ -74,10 +74,8 @@ void Parser::RaiseError(const Token& token, const std::string& message, Args&&..
 {
     std::println(
         std::cerr,
-        "{}({}, {}): Syntax error: {}",
-        token.inputFile->GetFilepath(),
-        token.position.line,
-        token.position.column,
+        "{}: Syntax error: {}",
+        Utils::FormatFileLink(token.inputFile->GetFilepath(), token.position),
         std::vformat(message, std::make_format_args(args...))
     );
 

@@ -7,7 +7,13 @@ void Utils::Exit(ErrorCodes code)
 
     std::println("Exiting early with code {0:d} ({0})", code);
 
-    exit(static_cast<int>(code));  // NOLINT(concurrency-mt-unsafe)
+    exit(static_cast<s32>(code));  // NOLINT(concurrency-mt-unsafe)
+}
+
+std::string Utils::FormatFileLink(const std::filesystem::path& filepath, const Position& position)
+{
+    const auto absolutePath = absolute(filepath);
+    return std::format(ANSI_FILE_LINK("{}", "{}:{}:{}"), absolutePath.generic_string(), absolutePath.string(), position.line, position.column);
 }
 
 // ReSharper disable CppClangTidyCertDcl58Cpp
@@ -19,7 +25,7 @@ size_t std::replace_all(std::string& str, const std::string_view pattern, const 
     while ((offset = str.find(pattern)) != std::string::npos)
     {
         str.replace(offset, pattern.size(), replacement);
-        ++occurrences;
+        occurrences++;
     }
 
     return occurrences;
