@@ -1,5 +1,7 @@
 ﻿#include "AbstractSyntaxTree.hpp"
 
+#include <llvm/IR/Verifier.h>
+
 using namespace Ast;
 
 Statement::Statement()
@@ -151,10 +153,9 @@ llvm::Value* FunctionCall::GenerateCode()
     return builder->CreateCall(calleeFunction, arguments, "calltmp");
 }
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body, bool isExpressionBody)
+FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body)
     : m_Prototype{std::move(prototype)}
     , m_Body{std::move(body)}
-    , m_IsExpressionBody{isExpressionBody}
 {
 }
 
@@ -170,7 +171,7 @@ llvm::Function* FunctionDefinition::GenerateCode()
         return nullptr;
 
     if (!function->empty())
-        return RaiseError<llvm::Function>("Function cannot be redefined.");
+        return RaiseError<llvm::Function>("Function {} has already been defined", function->getName());
 
     // Create a new basic block to start insertion into
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*theContext, "entry", function);
@@ -182,30 +183,14 @@ llvm::Function* FunctionDefinition::GenerateCode()
     for (llvm::Argument& argument : function->args())
         identifiers[argument.getName().data()] = &argument;
 
-    bool valid = false;
-
-    if (m_IsExpressionBody)
+    if (!m_Body->GenerateCode()) // If body code generation failed
     {
-        assert(m_Body->IsSingleStatement());
-
-        // There's probably a better way to do this
-        FunctionReturn ret{std::unique_ptr<Expression>{dynamic_cast<Expression*>(m_Body->GetBody()[0].get())}};
-        ret.GenerateCode();
-
-        valid = true;
-    }
-
-    if (m_Body->GenerateCode())
-        valid = true;
-
-    if (!valid)
-    {
-        // Error reading body, remove function.
+        // Error reading body, remove function
         function->eraseFromParent();
         return nullptr;
     }
 
-    // Validate the generated code, checking for consistency.
+    // Validate the generated code, checking for consistency
     llvm::verifyFunction(*function);
 
     return function;

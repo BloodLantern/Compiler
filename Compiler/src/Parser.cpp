@@ -398,7 +398,12 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result.get();
 
-            result->GetBody().push_back(ParseTopLevelStatement());
+            result->GetBody().push_back(std::make_unique<Ast::FunctionReturn>(ParseExpression()));
+
+            if (GetCurrentToken().type != TokenType::Semicolon)
+                return RaiseError<Ast::Scope>("Expected ';' after Expression in single-statement function, got {}", GetCurrentToken().type);
+
+            SkipTokens(1);
 
             Ast::currentScope = result->GetParentScope();
             return result;
@@ -466,7 +471,6 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
     ParseFunctionParameters(parameters);
 
     auto prototype = std::make_unique<Ast::FunctionPrototype>(std::move(typeNamePair), std::move(parameters));
-    bool isExpressionBody;
 
     switch (GetCurrentToken().type)
     {
@@ -474,18 +478,13 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
             return prototype;
 
         case TokenType::CurlyBraceOpen:
-            isExpressionBody = false;
-            break;
-
         case TokenType::EqualsGreaterThan:
-            isExpressionBody = true;
-            break;
+            return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 
         default:
             return RaiseError("Expected either ';' or '{' in function declaration, got {}", GetCurrentToken().type);
     }
 
-    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope(), isExpressionBody);
 }
 
 void Parser::ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Parameter>& output)
@@ -536,5 +535,5 @@ std::unique_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
     if (openBrace.type != TokenType::CurlyBraceOpen)
         return RaiseError<Ast::FunctionDefinition>("Expected '{' in function definition, got {}", openBrace.type);
 
-    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope(), false);
+    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 }

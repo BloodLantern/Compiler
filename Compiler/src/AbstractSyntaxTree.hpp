@@ -213,18 +213,16 @@ namespace Ast
     class FunctionDefinition : public Statement
     {
     public:
-        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body, bool isExpressionBody);
+        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body);
 
         llvm::Function* GenerateCode() override;
 
         GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
         GETTER_M(const std::unique_ptr<Scope>&, Body)
-        GETTER_M(bool, IsExpressionBody)
 
     private:
         std::unique_ptr<FunctionPrototype> m_Prototype;
         std::unique_ptr<Scope> m_Body;
-        bool m_IsExpressionBody = false;
     };
 
     class FunctionReturn : public Statement
