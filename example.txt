@@ -1,9 +1,16 @@
 
 int Sum(int a, int b) => a + b;
 
+int Func(int a, int b)
+{
+    if (a)
+        return a;
+    return b;
+}
+
 int main()
 {
-    return Sum(Sum(5, 4), 2) * 6 / 3;
+    return Func(1, 2);
 }
 
 /*

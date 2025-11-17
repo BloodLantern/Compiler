@@ -21,6 +21,8 @@ public:
     ATTRIBUTE_NODISCARD
     const Token& GetNextToken();
     void SkipTokens(size_t count);
+    ATTRIBUTE_NODISCARD
+    const Token& PeekToken(ptrdiff_t offset) const;
 
     GETTER_M(bool, Failure)
 
@@ -42,6 +44,7 @@ private:
     std::unique_ptr<Ast::Expression> ParseOperationRhs(s32 expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
     std::unique_ptr<Ast::TypeName> ParseType();
     std::unique_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
+    std::unique_ptr<Ast::IfElse> ParseIfElse();
 
     std::unique_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
     /// @brief Parses a top-level scope such as namespaces or type definitions

@@ -3,7 +3,7 @@
 #include "InputFile.hpp"
 #include "Position.hpp"
 #include "Token.hpp"
-#include "Utils.hpp"
+#include "Utility/Utils.hpp"
 
 class Lexer
 {

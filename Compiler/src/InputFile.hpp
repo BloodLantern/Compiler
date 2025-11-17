@@ -1,6 +1,6 @@
 ﻿#pragma once
 
-#include "Utils.hpp"
+#include "Utility/Utils.hpp"
 
 class InputFile
 {

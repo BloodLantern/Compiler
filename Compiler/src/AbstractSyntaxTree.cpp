@@ -212,6 +212,64 @@ llvm::Value* FunctionReturn::GenerateCode()
     return builder->CreateRet(returnValue);
 }
 
+IfElse::IfElse(std::unique_ptr<Expression> condition, std::unique_ptr<Scope> ifBody, std::unique_ptr<Scope> elseBody)
+    : m_Condition{std::move(condition)}
+    , m_IfBody{std::move(ifBody)}
+    , m_ElseBody{std::move(elseBody)}
+{
+}
+
+llvm::Value* IfElse::GenerateCode()
+{
+    llvm::Value* condition = m_Condition->GenerateCode();
+    if (!condition)
+        return nullptr;
+
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*theContext, llvm::APInt{1, 0}), "ifcond");
+
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    // Create blocks for the if and else cases
+    // Insert the 'if' block at the end of the function
+    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*theContext, "if", function);
+    llvm::BasicBlock* elseBlock = llvm::BasicBlock::Create(*theContext, "else");
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*theContext, "ifcont");
+
+    builder->CreateCondBr(condition, ifBlock, elseBlock);
+
+    // Emit if value
+    builder->SetInsertPoint(ifBlock);
+
+    llvm::Value* ifReturnValue = m_IfBody->GenerateCode();
+    if (!ifReturnValue)
+        return nullptr;
+
+    builder->CreateBr(mergeBlock);
+    // Codegen of 'if' can change the current block, update ifBlock for the Phi
+    ifBlock = builder->GetInsertBlock();
+
+    // Emit else block
+    function->insert(function->end(), elseBlock);
+    builder->SetInsertPoint(elseBlock);
+
+    llvm::Value* elseReturnValue = m_ElseBody->GenerateCode();
+    if (!elseReturnValue)
+        return nullptr;
+
+    builder->CreateBr(mergeBlock);
+    // Codegen of 'else' can change the current block, update elseBlock for the Phi
+    elseBlock = builder->GetInsertBlock();
+
+    // Emit merge block
+    function->insert(function->end(), mergeBlock);
+    builder->SetInsertPoint(mergeBlock);
+    llvm::PHINode* phiNode = builder->CreatePHI(llvm::Type::getInt32Ty(*theContext), 2, "iftmp");
+
+    phiNode->addIncoming(ifReturnValue, ifBlock);
+    phiNode->addIncoming(elseReturnValue, elseBlock);
+    return phiNode;
+}
+
 TypeName::TypeName(std::variant<std::string, BuiltinType> type)
     : m_Type{std::move(type)}
 {

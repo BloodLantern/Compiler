@@ -4,7 +4,7 @@
 #include "Globals.hpp"
 #include "Operator.hpp"
 #include "Token.hpp"
-#include "Utils.hpp"
+#include "Utility/Utils.hpp"
 
 namespace Ast
 {
@@ -49,6 +49,7 @@ namespace Ast
         virtual ~Statement() = default;
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
 
+        /// @returns For @c Expression, returns the expression result value. Otherwise, this returns @c nullptr.
         virtual llvm::Value* GenerateCode() = 0;
 
         ATTRIBUTE_NODISCARD
@@ -77,7 +78,7 @@ namespace Ast
         Scope(std::unique_ptr<Statement> body, bool isFunctionLevel);
         explicit Scope(bool isFunctionLevel);
 
-        /// @brief Returns the last statement's @c GenerateCode() result value.
+        /// @returns Always returns @c nullptr
         llvm::Value* GenerateCode() override;
 
         ATTRIBUTE_NODISCARD
@@ -236,6 +237,22 @@ namespace Ast
 
     private:
         std::unique_ptr<Expression> m_ReturnValue;
+    };
+
+    class IfElse : public Statement
+    {
+    public:
+        explicit IfElse(std::unique_ptr<Expression> condition, std::unique_ptr<Scope> ifBody, std::unique_ptr<Scope> elseBody);
+
+        llvm::Value* GenerateCode() override;
+
+        GETTER_M(const std::unique_ptr<Expression>&, Condition)
+        GETTER_M(const std::unique_ptr<Scope>&, IfBody)
+        GETTER_M(const std::unique_ptr<Scope>&, ElseBody)
+
+    private:
+        std::unique_ptr<Expression> m_Condition;
+        std::unique_ptr<Scope> m_IfBody, m_ElseBody;
     };
 }
 

@@ -1,6 +1,6 @@
 ﻿#include "InputFile.hpp"
 
-#include "Utils.hpp"
+#include "Utility/Utils.hpp"
 
 InputFile::InputFile(const std::string_view filepath)
     : m_Filepath{filepath}

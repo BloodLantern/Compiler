@@ -2,12 +2,12 @@
 #include "Lexer.hpp"
 #include "Parser.hpp"
 
-// TODO - https://llvm.org/docs/tutorial/MyFirstLanguageFrontend/index.html
-
 int main()
 {
     std::println("Working directory: {}", std::filesystem::current_path().generic_string());
     std::cout.flush();
+
+    const auto start = std::chrono::high_resolution_clock::now();
 
     InputFile inputFile{"example.txt"};
     inputFile.ReadContents();
@@ -53,6 +53,9 @@ int main()
         Utils::Exit(ErrorCodes::FatalError);
     }
     theModule->print(out, nullptr);
+
+    std::println("Compilation took {} ms",
+                 std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
 
     int lliResult = Utils::SystemCommand("lli {}", IrOut);
     if (lliResult == 1)

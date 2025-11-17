@@ -2,7 +2,7 @@
 
 #include <cassert>
 
-#include "Utils.hpp"
+#include "Utility/Utils.hpp"
 
 Lexer::Lexer(const InputFile& inputFile)
     : m_InputFile{&inputFile}

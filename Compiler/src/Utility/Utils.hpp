@@ -1,8 +1,8 @@
 ﻿#pragma once
 
-#include "Common.hpp"
-#include "ErrorCodes.hpp"
-#include "Position.hpp"
+#include "../Common.hpp"
+#include "../ErrorCodes.hpp"
+#include "../Position.hpp"
 
 // ReSharper disable CppClangTidyBugproneMacroParentheses
 /// @brief Creates default copy and move operations for a given @p type.

@@ -62,7 +62,10 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
         {
             const auto keyword = std::get<Keyword>(token.value.value());
             if (IsKeywordType(keyword))
-                return ParseVariableDeclaration(ParseTypeIdentifierPair());
+            {
+                result = ParseExpression();
+                break;
+            }
 
             switch (keyword)
             {
@@ -70,6 +73,9 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
                     SkipTokens(1);
                     result = std::make_unique<Ast::FunctionReturn>(ParseExpression());
                     break;
+
+                case Keyword::If:
+                    return ParseIfElse();
 
                 default:
                     result = RaiseError("Invalid keyword in statement: {}", keyword);
@@ -80,7 +86,8 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
         }
 
         case TokenType::Identifier:
-            return ParseVariableDeclaration(ParseTypeIdentifierPair());
+            result = ParseExpression();
+            break;
 
         default:
             result = RaiseError("Invalid token in statement: {}", token.type);
@@ -114,17 +121,22 @@ std::unique_ptr<Ast::Scope> Parser::ParseAll()
 
 const Token& Parser::GetCurrentToken() const
 {
-    return (*m_Tokens)[m_Index];
+    return m_Tokens->at(m_Index);
 }
 
 const Token& Parser::GetNextToken()
 {
-    return (*m_Tokens)[++m_Index];
+    return m_Tokens->at(++m_Index);
 }
 
 void Parser::SkipTokens(const size_t count)
 {
     m_Index += count;
+}
+
+const Token& Parser::PeekToken(const ptrdiff_t offset) const
+{
+    return m_Tokens->at(m_Index + offset);
 }
 
 std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::Expression>& lhs)
@@ -383,6 +395,40 @@ std::unique_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
     return std::make_unique<Ast::TypeIdentifierPair>(std::move(type), std::get<std::string>(name.value.value()));
 }
 
+std::unique_ptr<Ast::IfElse> Parser::ParseIfElse()
+{
+    assert(GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::If);
+
+    SkipTokens(1);
+
+    if (GetCurrentToken().type != TokenType::ParenthesisOpen)
+        return RaiseError<Ast::IfElse>("Expected '(' in if statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::unique_ptr<Ast::Expression> condition = ParseExpression();
+    if (!condition)
+        return nullptr;
+
+    if (GetCurrentToken().type != TokenType::ParenthesisClose)
+        return RaiseError<Ast::IfElse>("Expected ')' in if statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::unique_ptr<Ast::Scope> ifBody = ParseFunctionLevelScope();
+    if (!ifBody)
+        return nullptr;
+
+    std::unique_ptr<Ast::Scope> elseBody;
+    if (GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::Else)
+    {
+        SkipTokens(1);
+        elseBody = ParseFunctionLevelScope();
+    }
+
+    return std::make_unique<Ast::IfElse>(std::move(condition), std::move(ifBody), std::move(elseBody));
+}
+
 std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 {
     switch (GetCurrentToken().type)
@@ -432,9 +478,18 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
         }
 
         default:
-            return RaiseError<Ast::Scope>("Expected '{' or '=>' for scope, got {}", GetCurrentToken().type);
-    }
+            if (!isFunctionLevel)
+                return RaiseError<Ast::Scope>("Expected '{' or '=>' for scope, got {}", GetCurrentToken().type);
 
+            auto result = std::make_unique<Ast::Scope>(true);
+            // ReSharper disable once CppDFALocalValueEscapesFunction
+            Ast::currentScope = result.get();
+
+            result->GetBody().push_back(ParseFunctionLevelStatement());
+
+            Ast::currentScope = result->GetParentScope();
+            return result;
+    }
 }
 
 std::unique_ptr<Ast::Scope> Parser::ParseTopLevelScope()

@@ -6,8 +6,8 @@ find_package(magic_enum REQUIRED CONFIG)
 add_executable (Compiler
         src/AbstractSyntaxTree.hpp
         src/AbstractSyntaxTree.cpp
-        src/Attributes.hpp
-        src/CompilerSpecific.hpp
+        src/Utility/Attributes.hpp
+        src/Utility/CompilerSpecific.hpp
         src/ErrorCodes.hpp
         src/Globals.hpp
         src/InputFile.cpp
@@ -19,8 +19,8 @@ add_executable (Compiler
         src/Parser.hpp
         src/Position.hpp
         src/Token.hpp
-        src/Utils.cpp
-        src/Utils.hpp
+        src/Utility/Utils.cpp
+        src/Utility/Utils.hpp
         src/Keyword.hpp
         src/Operator.hpp
         src/BuiltinType.hpp
@@ -56,8 +56,8 @@ target_precompile_headers(Compiler PRIVATE
         <llvm/IR/Verifier.h>
 
         # Our headers
-        "src/Attributes.hpp"
-        "src/CompilerSpecific.hpp"
+        "src/Utility/Attributes.hpp"
+        "src/Utility/CompilerSpecific.hpp"
         "src/Common.hpp"
 )
 
