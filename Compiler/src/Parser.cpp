@@ -5,19 +5,19 @@ Parser::Parser(const std::vector<Token>& tokens)
 {
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseExpression()
+std::shared_ptr<Ast::Expression> Parser::ParseExpression()
 {
     if (GetCurrentToken().type == TokenType::Semicolon)
         return nullptr; // Empty expression
 
-    std::unique_ptr<Ast::Expression> lhs = ParsePrimary();
+    std::shared_ptr<Ast::Expression> lhs = ParsePrimary();
     if (!lhs)
         return nullptr;
 
     return ParseOperationRhs(-1, std::move(lhs));
 }
 
-std::unique_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
+std::shared_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
 {
     const Token& token = GetCurrentToken();
     switch (token.type)
@@ -41,9 +41,9 @@ std::unique_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
     }
 }
 
-std::unique_ptr<Ast::Statement> Parser::ParseTopLevelDeclaration()
+std::shared_ptr<Ast::Statement> Parser::ParseTopLevelDeclaration()
 {
-    std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair = ParseTypeIdentifierPair();
+    std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair = ParseTypeIdentifierPair();
 
     if (GetCurrentToken().type == TokenType::ParenthesisOpen)
         return ParseFunction(std::move(typeNamePair));
@@ -51,9 +51,9 @@ std::unique_ptr<Ast::Statement> Parser::ParseTopLevelDeclaration()
     return ParseVariableDeclaration(std::move(typeNamePair));
 }
 
-std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
+std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
 {
-    std::unique_ptr<Ast::Statement> result;
+    std::shared_ptr<Ast::Statement> result;
 
     const Token& token = GetCurrentToken();
     switch (token.type)
@@ -71,7 +71,7 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
             {
                 case Keyword::Return:
                     SkipTokens(1);
-                    result = std::make_unique<Ast::FunctionReturn>(ParseExpression());
+                    result = std::make_shared<Ast::FunctionReturn>(ParseExpression());
                     break;
 
                 case Keyword::If:
@@ -103,10 +103,10 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
     return result;
 }
 
-std::unique_ptr<Ast::Scope> Parser::ParseAll()
+std::shared_ptr<Ast::Scope> Parser::ParseAll()
 {
     Ast::currentScope = nullptr;
-    auto topLevelScope = std::make_unique<Ast::Scope>(false);
+    auto topLevelScope = std::make_shared<Ast::Scope>(false);
     // ReSharper disable once CppDFALocalValueEscapesFunction
     Ast::currentScope = topLevelScope.get();
 
@@ -139,7 +139,7 @@ const Token& Parser::PeekToken(const ptrdiff_t offset) const
     return m_Tokens->at(m_Index + offset);
 }
 
-std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::Expression>& lhs)
+std::optional<Operator> Parser::ParseCurrentOperator(const std::shared_ptr<Ast::Expression>& lhs)
 {
     const Token& current = GetCurrentToken();
 
@@ -214,7 +214,7 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::unique_ptr<Ast::
     }
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParsePrimary()
+std::shared_ptr<Ast::Expression> Parser::ParsePrimary()
 {
     const Token& token = GetCurrentToken();
 
@@ -241,19 +241,19 @@ std::unique_ptr<Ast::Expression> Parser::ParsePrimary()
     }
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseIdentifier()
+std::shared_ptr<Ast::Expression> Parser::ParseIdentifier()
 {
     const auto& identifier = std::get<std::string>(GetCurrentToken().value.value());
 
     if (GetNextToken().type != TokenType::ParenthesisOpen)
-        return std::make_unique<Ast::VariableUsage>(identifier);
+        return std::make_shared<Ast::VariableUsage>(identifier);
 
-    std::vector<std::unique_ptr<Ast::Expression>> arguments;
+    std::vector<std::shared_ptr<Ast::Expression>> arguments;
     if (GetNextToken().type != TokenType::ParenthesisClose)
     {
         while (true)
         {
-            if (std::unique_ptr<Ast::Expression> argument = ParseExpression())
+            if (std::shared_ptr<Ast::Expression> argument = ParseExpression())
                 arguments.push_back(std::move(argument));
             else
                 return nullptr;
@@ -271,13 +271,13 @@ std::unique_ptr<Ast::Expression> Parser::ParseIdentifier()
 
     SkipTokens(1);
 
-    return std::make_unique<Ast::FunctionCall>(identifier, std::move(arguments));
+    return std::make_shared<Ast::FunctionCall>(identifier, std::move(arguments));
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseParentheses()
+std::shared_ptr<Ast::Expression> Parser::ParseParentheses()
 {
     SkipTokens(1);
-    std::unique_ptr<Ast::Expression> expression = ParseExpression();
+    std::shared_ptr<Ast::Expression> expression = ParseExpression();
     if (!expression)
         return nullptr;
 
@@ -289,23 +289,23 @@ std::unique_ptr<Ast::Expression> Parser::ParseParentheses()
     return expression;
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseLiteral()
+std::shared_ptr<Ast::Expression> Parser::ParseLiteral()
 {
     const Token& token = GetCurrentToken();
-    std::unique_ptr<Ast::Expression> result;
+    std::shared_ptr<Ast::Expression> result;
 
     switch (token.type)
     {
         case TokenType::LiteralInteger:
-            result = std::make_unique<Ast::LiteralNumber<s32>>(std::get<s32>(token.value.value()));
+            result = std::make_shared<Ast::LiteralNumber<s32>>(std::get<s32>(token.value.value()));
             break;
 
         case TokenType::LiteralCharacter:
-            result = std::make_unique<Ast::LiteralCharacter>(std::get<c8>(token.value.value()));
+            result = std::make_shared<Ast::LiteralCharacter>(std::get<c8>(token.value.value()));
             break;
 
         case TokenType::LiteralString:
-            result = std::make_unique<Ast::LiteralString>(std::get<std::string>(token.value.value()));
+            result = std::make_shared<Ast::LiteralString>(std::get<std::string>(token.value.value()));
             break;
 
         default:
@@ -316,7 +316,7 @@ std::unique_ptr<Ast::Expression> Parser::ParseLiteral()
     return result;
 }
 
-std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::unique_ptr<Ast::Expression> lhs)
+std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs)
 {
     while (true)
     {
@@ -346,11 +346,11 @@ std::unique_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
                 return nullptr;
         }
 
-        lhs = std::make_unique<Ast::Operation>(op, std::move(lhs), std::move(rhs));
+        lhs = std::make_shared<Ast::Operation>(op, std::move(lhs), std::move(rhs));
     }
 }
 
-std::unique_ptr<Ast::TypeName> Parser::ParseType()
+std::shared_ptr<Ast::TypeName> Parser::ParseType()
 {
     const Token& token = GetCurrentToken();
 
@@ -376,12 +376,12 @@ std::unique_ptr<Ast::TypeName> Parser::ParseType()
 
     SkipTokens(1);
 
-    return std::make_unique<Ast::TypeName>(type);
+    return std::make_shared<Ast::TypeName>(type);
 }
 
-std::unique_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
+std::shared_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
 {
-    std::unique_ptr<Ast::TypeName> type = ParseType();
+    std::shared_ptr<Ast::TypeName> type = ParseType();
     if (!type)
         return nullptr;
 
@@ -392,10 +392,10 @@ std::unique_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
 
     SkipTokens(1);
 
-    return std::make_unique<Ast::TypeIdentifierPair>(std::move(type), std::get<std::string>(name.value.value()));
+    return std::make_shared<Ast::TypeIdentifierPair>(std::move(type), std::get<std::string>(name.value.value()));
 }
 
-std::unique_ptr<Ast::IfElse> Parser::ParseIfElse()
+std::shared_ptr<Ast::IfElse> Parser::ParseIfElse()
 {
     assert(GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::If);
 
@@ -406,7 +406,7 @@ std::unique_ptr<Ast::IfElse> Parser::ParseIfElse()
 
     SkipTokens(1);
 
-    std::unique_ptr<Ast::Expression> condition = ParseExpression();
+    std::shared_ptr<Ast::Expression> condition = ParseExpression();
     if (!condition)
         return nullptr;
 
@@ -415,21 +415,21 @@ std::unique_ptr<Ast::IfElse> Parser::ParseIfElse()
 
     SkipTokens(1);
 
-    std::unique_ptr<Ast::Scope> ifBody = ParseFunctionLevelScope();
+    std::shared_ptr<Ast::Scope> ifBody = ParseFunctionLevelScope();
     if (!ifBody)
         return nullptr;
 
-    std::unique_ptr<Ast::Scope> elseBody;
+    std::shared_ptr<Ast::Scope> elseBody;
     if (GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::Else)
     {
         SkipTokens(1);
         elseBody = ParseFunctionLevelScope();
     }
 
-    return std::make_unique<Ast::IfElse>(std::move(condition), std::move(ifBody), std::move(elseBody));
+    return std::make_shared<Ast::IfElse>(std::move(condition), std::move(ifBody), std::move(elseBody));
 }
 
-std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
+std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 {
     switch (GetCurrentToken().type)
     {
@@ -440,11 +440,11 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 
             SkipTokens(1); // Skip '=>'
 
-            auto result = std::make_unique<Ast::Scope>(true);
+            auto result = std::make_shared<Ast::Scope>(true);
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result.get();
 
-            result->GetBody().push_back(std::make_unique<Ast::FunctionReturn>(ParseExpression()));
+            result->GetBody().push_back(std::make_shared<Ast::FunctionReturn>(ParseExpression()));
 
             if (GetCurrentToken().type != TokenType::Semicolon)
                 return RaiseError<Ast::Scope>("Expected ';' after Expression in single-statement function, got {}", GetCurrentToken().type);
@@ -459,13 +459,13 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
         {
             SkipTokens(1); // Skip '{'
 
-            auto result = std::make_unique<Ast::Scope>(isFunctionLevel);
+            auto result = std::make_shared<Ast::Scope>(isFunctionLevel);
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result.get();
 
             const auto statementParseFunction = isFunctionLevel ? &Parser::ParseFunctionLevelStatement : &Parser::ParseTopLevelStatement;
 
-            std::vector<std::unique_ptr<Ast::Statement>> body;
+            std::vector<std::shared_ptr<Ast::Statement>> body;
             while (GetCurrentToken().type != TokenType::CurlyBraceClose)
                 body.push_back((this->*statementParseFunction)());
 
@@ -481,7 +481,7 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
             if (!isFunctionLevel)
                 return RaiseError<Ast::Scope>("Expected '{' or '=>' for scope, got {}", GetCurrentToken().type);
 
-            auto result = std::make_unique<Ast::Scope>(true);
+            auto result = std::make_shared<Ast::Scope>(true);
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result.get();
 
@@ -492,17 +492,17 @@ std::unique_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
     }
 }
 
-std::unique_ptr<Ast::Scope> Parser::ParseTopLevelScope()
+std::shared_ptr<Ast::Scope> Parser::ParseTopLevelScope()
 {
     return ParseScope(false);
 }
 
-std::unique_ptr<Ast::Scope> Parser::ParseFunctionLevelScope()
+std::shared_ptr<Ast::Scope> Parser::ParseFunctionLevelScope()
 {
     return ParseScope(true);
 }
 
-std::unique_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair)
+std::shared_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair)
 {
     const Token& currentToken = GetCurrentToken();
     switch (currentToken.type)
@@ -518,14 +518,14 @@ std::unique_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::unique_ptr
     }
 }
 
-std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair)
+std::shared_ptr<Ast::Statement> Parser::ParseFunction(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair)
 {
     assert(GetCurrentToken().type == TokenType::ParenthesisOpen);
 
     std::vector<Ast::FunctionPrototype::Parameter> parameters;
     ParseFunctionParameters(parameters);
 
-    auto prototype = std::make_unique<Ast::FunctionPrototype>(std::move(typeNamePair), std::move(parameters));
+    auto prototype = std::make_shared<Ast::FunctionPrototype>(std::move(typeNamePair), std::move(parameters));
 
     switch (GetCurrentToken().type)
     {
@@ -534,7 +534,7 @@ std::unique_ptr<Ast::Statement> Parser::ParseFunction(std::unique_ptr<Ast::TypeI
 
         case TokenType::CurlyBraceOpen:
         case TokenType::EqualsGreaterThan:
-            return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+            return std::make_shared<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 
         default:
             return RaiseError("Expected either ';' or '{' in function declaration, got {}", GetCurrentToken().type);
@@ -567,9 +567,9 @@ void Parser::ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Paramet
     SkipTokens(1); // Skip ')'
 }
 
-std::unique_ptr<Ast::FunctionPrototype> Parser::ParseFunctionPrototype()
+std::shared_ptr<Ast::FunctionPrototype> Parser::ParseFunctionPrototype()
 {
-    std::unique_ptr<Ast::TypeIdentifierPair> typeName = ParseTypeIdentifierPair();
+    std::shared_ptr<Ast::TypeIdentifierPair> typeName = ParseTypeIdentifierPair();
 
     if (GetCurrentToken().type != TokenType::ParenthesisOpen)
         return RaiseError<Ast::FunctionPrototype>("Expected '(' in prototype, got {}", GetCurrentToken().type);
@@ -577,12 +577,12 @@ std::unique_ptr<Ast::FunctionPrototype> Parser::ParseFunctionPrototype()
     std::vector<Ast::FunctionPrototype::Parameter> parameters;
     ParseFunctionParameters(parameters);
 
-    return std::make_unique<Ast::FunctionPrototype>(std::move(typeName), std::move(parameters));
+    return std::make_shared<Ast::FunctionPrototype>(std::move(typeName), std::move(parameters));
 }
 
-std::unique_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
+std::shared_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
 {
-    std::unique_ptr<Ast::FunctionPrototype> prototype = ParseFunctionPrototype();
+    std::shared_ptr<Ast::FunctionPrototype> prototype = ParseFunctionPrototype();
     if (!prototype)
         return nullptr;
 
@@ -590,5 +590,5 @@ std::unique_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
     if (openBrace.type != TokenType::CurlyBraceOpen)
         return RaiseError<Ast::FunctionDefinition>("Expected '{' in function definition, got {}", openBrace.type);
 
-    return std::make_unique<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+    return std::make_shared<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
 }

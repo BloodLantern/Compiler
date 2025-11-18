@@ -32,13 +32,13 @@ namespace Ast
     class TypeIdentifierPair
     {
     public:
-        explicit TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name);
+        explicit TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name);
 
-        GETTER_M(const std::unique_ptr<TypeName>&, Type)
+        GETTER_M(const std::shared_ptr<TypeName>&, Type)
         GETTER_M(const std::string&, Name)
 
     private:
-        std::unique_ptr<TypeName> m_Type;
+        std::shared_ptr<TypeName> m_Type;
         std::string m_Name;
     };
 
@@ -74,8 +74,8 @@ namespace Ast
     public:
         using IdentifierMap = std::unordered_map<std::string_view, llvm::Value*>;
 
-        Scope(std::vector<std::unique_ptr<Statement>> body, bool isFunctionLevel);
-        Scope(std::unique_ptr<Statement> body, bool isFunctionLevel);
+        Scope(std::vector<std::shared_ptr<Statement>> body, bool isFunctionLevel);
+        Scope(std::shared_ptr<Statement> body, bool isFunctionLevel);
         explicit Scope(bool isFunctionLevel);
 
         /// @returns Always returns @c nullptr
@@ -84,12 +84,12 @@ namespace Ast
         ATTRIBUTE_NODISCARD
         bool IsSingleStatement() const;
 
-        GETTER_NON_CONST_M(std::vector<std::unique_ptr<Statement>>&, Body)
+        GETTER_NON_CONST_M(std::vector<std::shared_ptr<Statement>>&, Body)
         GETTER_M(bool, IsFunctionLevel)
         GETTER_NON_CONST_M(IdentifierMap&, Identifiers)
 
     private:
-        std::vector<std::unique_ptr<Statement>> m_Body;
+        std::vector<std::shared_ptr<Statement>> m_Body;
         bool m_IsFunctionLevel;
 
         IdentifierMap m_Identifiers;
@@ -138,14 +138,14 @@ namespace Ast
     class VariableDeclaration : public Expression
     {
     public:
-        explicit VariableDeclaration(std::unique_ptr<TypeIdentifierPair> typeName);
+        explicit VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName);
 
         llvm::Value* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<TypeIdentifierPair>&, TypeName)
+        GETTER_M(const std::shared_ptr<TypeIdentifierPair>&, TypeName)
 
     private:
-        std::unique_ptr<TypeIdentifierPair> m_TypeName;
+        std::shared_ptr<TypeIdentifierPair> m_TypeName;
     };
 
     class VariableUsage : public Expression
@@ -164,49 +164,49 @@ namespace Ast
     class Operation : public Expression
     {
     public:
-        Operation(Operator operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs);
+        Operation(Operator operatorType, std::shared_ptr<Expression> lhs, std::shared_ptr<Expression> rhs);
 
         llvm::Value* GenerateCode() override;
 
         GETTER_M(Operator, OperatorType)
-        GETTER_M(const std::unique_ptr<Expression>&, Lhs)
-        GETTER_M(const std::unique_ptr<Expression>&, Rhs)
+        GETTER_M(const std::shared_ptr<Expression>&, Lhs)
+        GETTER_M(const std::shared_ptr<Expression>&, Rhs)
 
     private:
         Operator m_OperatorType;
-        std::unique_ptr<Expression> m_Lhs, m_Rhs;
+        std::shared_ptr<Expression> m_Lhs, m_Rhs;
     };
 
     class FunctionCall : public Expression
     {
     public:
-        FunctionCall(std::string callee, std::vector<std::unique_ptr<Expression>> arguments);
+        FunctionCall(std::string callee, std::vector<std::shared_ptr<Expression>> arguments);
 
         llvm::Value* GenerateCode() override;
 
         GETTER_M(const std::string&, Callee)
-        GETTER_M(const std::vector<std::unique_ptr<Expression>>&, Arguments)
+        GETTER_M(const std::vector<std::shared_ptr<Expression>>&, Arguments)
 
     private:
         std::string m_Callee;
-        std::vector<std::unique_ptr<Expression>> m_Arguments;
+        std::vector<std::shared_ptr<Expression>> m_Arguments;
     };
 
     /// @brief Represents a function prototype, which captures its return type, name and its argument types and names.
     class FunctionPrototype : public Statement
     {
     public:
-        using Parameter = std::unique_ptr<TypeIdentifierPair>;
+        using Parameter = std::shared_ptr<TypeIdentifierPair>;
 
-        FunctionPrototype(std::unique_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters);
+        FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters);
 
         llvm::Function* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<TypeIdentifierPair>&, TypeNamePair)
+        GETTER_M(const std::shared_ptr<TypeIdentifierPair>&, TypeNamePair)
         GETTER_M(const std::vector<Parameter>&, Parameters)
 
     private:
-        std::unique_ptr<TypeIdentifierPair> m_TypeNamePair;
+        std::shared_ptr<TypeIdentifierPair> m_TypeNamePair;
         std::vector<Parameter> m_Parameters;
     };
 
@@ -214,45 +214,45 @@ namespace Ast
     class FunctionDefinition : public Statement
     {
     public:
-        FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body);
+        FunctionDefinition(std::shared_ptr<FunctionPrototype> prototype, std::shared_ptr<Scope> body);
 
         llvm::Function* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<FunctionPrototype>&, Prototype)
-        GETTER_M(const std::unique_ptr<Scope>&, Body)
+        GETTER_M(const std::shared_ptr<FunctionPrototype>&, Prototype)
+        GETTER_M(const std::shared_ptr<Scope>&, Body)
 
     private:
-        std::unique_ptr<FunctionPrototype> m_Prototype;
-        std::unique_ptr<Scope> m_Body;
+        std::shared_ptr<FunctionPrototype> m_Prototype;
+        std::shared_ptr<Scope> m_Body;
     };
 
     class FunctionReturn : public Statement
     {
     public:
-        explicit FunctionReturn(std::unique_ptr<Expression> returnValue);
+        explicit FunctionReturn(std::shared_ptr<Expression> returnValue);
 
         llvm::Value* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<Expression>&, ReturnValue)
+        GETTER_M(const std::shared_ptr<Expression>&, ReturnValue)
 
     private:
-        std::unique_ptr<Expression> m_ReturnValue;
+        std::shared_ptr<Expression> m_ReturnValue;
     };
 
     class IfElse : public Statement
     {
     public:
-        explicit IfElse(std::unique_ptr<Expression> condition, std::unique_ptr<Scope> ifBody, std::unique_ptr<Scope> elseBody);
+        explicit IfElse(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> ifBody, std::shared_ptr<Scope> elseBody);
 
         llvm::Value* GenerateCode() override;
 
-        GETTER_M(const std::unique_ptr<Expression>&, Condition)
-        GETTER_M(const std::unique_ptr<Scope>&, IfBody)
-        GETTER_M(const std::unique_ptr<Scope>&, ElseBody)
+        GETTER_M(const std::shared_ptr<Expression>&, Condition)
+        GETTER_M(const std::shared_ptr<Scope>&, IfBody)
+        GETTER_M(const std::shared_ptr<Scope>&, ElseBody)
 
     private:
-        std::unique_ptr<Expression> m_Condition;
-        std::unique_ptr<Scope> m_IfBody, m_ElseBody;
+        std::shared_ptr<Expression> m_Condition;
+        std::shared_ptr<Scope> m_IfBody, m_ElseBody;
     };
 }
 
@@ -282,7 +282,7 @@ namespace Ast
     llvm::Value* LiteralNumber<NumberType>::GenerateCode()
     {
         if constexpr (std::is_same_v<NumberType, s32>)
-            return llvm::ConstantInt::get(*theContext, llvm::APInt(32, m_Value, true));
+            return llvm::ConstantInt::get(*llvmContext, llvm::APInt(32, m_Value, true));
         else
             static_assert(false, "Unhandled numeric type");
 

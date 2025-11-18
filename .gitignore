@@ -135,3 +135,4 @@ fabric.properties
 
 # LLVM IR files
 *.ll
+*.s

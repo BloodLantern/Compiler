@@ -1,5 +1,5 @@
 #pragma once
 
-inline std::unique_ptr<llvm::LLVMContext> theContext;
-inline std::unique_ptr<llvm::IRBuilder<>> builder;
-inline std::unique_ptr<llvm::Module> theModule;
+inline std::shared_ptr<llvm::LLVMContext> llvmContext;
+inline std::shared_ptr<llvm::IRBuilder<>> builder;
+inline std::shared_ptr<llvm::Module> theModule;

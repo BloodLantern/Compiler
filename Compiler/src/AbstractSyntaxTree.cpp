@@ -19,13 +19,13 @@ llvm::Value* Statement::LookupIdentifier(const std::string_view name) const
     return m_ParentScope->GetIdentifiers().at(name);
 }
 
-Scope::Scope(std::vector<std::unique_ptr<Statement>> body, const bool isFunctionLevel)
+Scope::Scope(std::vector<std::shared_ptr<Statement>> body, const bool isFunctionLevel)
     : m_Body{std::move(body)}
     , m_IsFunctionLevel{isFunctionLevel}
 {
 }
 
-Scope::Scope(std::unique_ptr<Statement> body, const bool isFunctionLevel)
+Scope::Scope(std::shared_ptr<Statement> body, const bool isFunctionLevel)
     : m_IsFunctionLevel{isFunctionLevel}
 {
     m_Body.push_back(std::move(body));
@@ -58,7 +58,7 @@ LiteralCharacter::LiteralCharacter(const c8 value)
 
 llvm::Value* LiteralCharacter::GenerateCode()
 {
-    return llvm::ConstantInt::get(*theContext, llvm::APInt{8, static_cast<uint32_t>(m_Value)});
+    return llvm::ConstantInt::get(*llvmContext, llvm::APInt{8, static_cast<uint32_t>(m_Value)});
 }
 
 LiteralString::LiteralString(std::string value)
@@ -71,7 +71,7 @@ llvm::Value* LiteralString::GenerateCode()
     return nullptr;
 }
 
-VariableDeclaration::VariableDeclaration(std::unique_ptr<TypeIdentifierPair> typeName)
+VariableDeclaration::VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName)
     : m_TypeName{std::move(typeName)}
 {
 }
@@ -94,7 +94,7 @@ llvm::Value* VariableUsage::GenerateCode()
     return v;
 }
 
-Operation::Operation(const Operator operatorType, std::unique_ptr<Expression> lhs, std::unique_ptr<Expression> rhs)
+Operation::Operation(const Operator operatorType, std::shared_ptr<Expression> lhs, std::shared_ptr<Expression> rhs)
     : m_OperatorType{operatorType}
     , m_Lhs{std::move(lhs)}
     , m_Rhs{std::move(rhs)}
@@ -126,7 +126,7 @@ llvm::Value* Operation::GenerateCode()
     }
 }
 
-FunctionCall::FunctionCall(std::string callee, std::vector<std::unique_ptr<Expression>> arguments)
+FunctionCall::FunctionCall(std::string callee, std::vector<std::shared_ptr<Expression>> arguments)
     : m_Callee{std::move(callee)}
     , m_Arguments{std::move(arguments)}
 {
@@ -137,13 +137,13 @@ llvm::Value* FunctionCall::GenerateCode()
     // Look up the name in the global module table
     llvm::Function* calleeFunction = theModule->getFunction(m_Callee);
     if (!calleeFunction)
-        return RaiseError("Unknown function referenced");
+        return RaiseError("Unknown function referenced: {}", m_Callee);
 
     if (calleeFunction->arg_size() != m_Arguments.size())
         return RaiseError("Incorrect number of arguments passed");
 
     std::vector<llvm::Value*> arguments;
-    for (const std::unique_ptr<Expression>& m_Argument : m_Arguments)
+    for (const std::shared_ptr<Expression>& m_Argument : m_Arguments)
     {
         arguments.push_back(m_Argument->GenerateCode());
         if (!arguments.back())
@@ -153,7 +153,7 @@ llvm::Value* FunctionCall::GenerateCode()
     return builder->CreateCall(calleeFunction, arguments, "calltmp");
 }
 
-FunctionDefinition::FunctionDefinition(std::unique_ptr<FunctionPrototype> prototype, std::unique_ptr<Scope> body)
+FunctionDefinition::FunctionDefinition(std::shared_ptr<FunctionPrototype> prototype, std::shared_ptr<Scope> body)
     : m_Prototype{std::move(prototype)}
     , m_Body{std::move(body)}
 {
@@ -174,7 +174,7 @@ llvm::Function* FunctionDefinition::GenerateCode()
         return RaiseError<llvm::Function>("Function {} has already been defined", function->getName());
 
     // Create a new basic block to start insertion into
-    llvm::BasicBlock* block = llvm::BasicBlock::Create(*theContext, "entry", function);
+    llvm::BasicBlock* block = llvm::BasicBlock::Create(*llvmContext, "entry", function);
     builder->SetInsertPoint(block);
 
     auto& identifiers = m_Body->GetIdentifiers();
@@ -196,7 +196,7 @@ llvm::Function* FunctionDefinition::GenerateCode()
     return function;
 }
 
-FunctionReturn::FunctionReturn(std::unique_ptr<Expression> returnValue)
+FunctionReturn::FunctionReturn(std::shared_ptr<Expression> returnValue)
     : m_ReturnValue{std::move(returnValue)}
 {
 }
@@ -212,7 +212,7 @@ llvm::Value* FunctionReturn::GenerateCode()
     return builder->CreateRet(returnValue);
 }
 
-IfElse::IfElse(std::unique_ptr<Expression> condition, std::unique_ptr<Scope> ifBody, std::unique_ptr<Scope> elseBody)
+IfElse::IfElse(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> ifBody, std::shared_ptr<Scope> elseBody)
     : m_Condition{std::move(condition)}
     , m_IfBody{std::move(ifBody)}
     , m_ElseBody{std::move(elseBody)}
@@ -225,15 +225,15 @@ llvm::Value* IfElse::GenerateCode()
     if (!condition)
         return nullptr;
 
-    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*theContext, llvm::APInt{1, 0}), "ifcond");
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{1, 0}), "ifcond");
 
     llvm::Function* function = builder->GetInsertBlock()->getParent();
 
     // Create blocks for the if and else cases
     // Insert the 'if' block at the end of the function
-    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*theContext, "if", function);
-    llvm::BasicBlock* elseBlock = llvm::BasicBlock::Create(*theContext, "else");
-    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*theContext, "ifcont");
+    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*llvmContext, "if", function);
+    llvm::BasicBlock* elseBlock = llvm::BasicBlock::Create(*llvmContext, "else");
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "ifcont");
 
     builder->CreateCondBr(condition, ifBlock, elseBlock);
 
@@ -263,7 +263,7 @@ llvm::Value* IfElse::GenerateCode()
     // Emit merge block
     function->insert(function->end(), mergeBlock);
     builder->SetInsertPoint(mergeBlock);
-    llvm::PHINode* phiNode = builder->CreatePHI(llvm::Type::getInt32Ty(*theContext), 2, "iftmp");
+    llvm::PHINode* phiNode = builder->CreatePHI(llvm::Type::getInt32Ty(*llvmContext), 2, "iftmp");
 
     phiNode->addIncoming(ifReturnValue, ifBlock);
     phiNode->addIncoming(elseReturnValue, elseBlock);
@@ -283,30 +283,30 @@ llvm::Type* TypeName::GetLlvmType() const
     switch (std::get<BuiltinType>(m_Type))
     {
         case BuiltinType::Void:
-            return llvm::Type::getVoidTy(*theContext);
+            return llvm::Type::getVoidTy(*llvmContext);
 
         case BuiltinType::Bool:
-            return llvm::Type::getInt1Ty(*theContext);
+            return llvm::Type::getInt1Ty(*llvmContext);
 
         case BuiltinType::Char:
         case BuiltinType::SByte:
         case BuiltinType::Byte:
-            return llvm::Type::getInt8Ty(*theContext);
+            return llvm::Type::getInt8Ty(*llvmContext);
 
         case BuiltinType::Short:
         case BuiltinType::UShort:
-            return llvm::Type::getInt16Ty(*theContext);
+            return llvm::Type::getInt16Ty(*llvmContext);
 
         case BuiltinType::Int:
         case BuiltinType::UInt:
-            return llvm::Type::getInt32Ty(*theContext);
+            return llvm::Type::getInt32Ty(*llvmContext);
 
         case BuiltinType::Long:
         case BuiltinType::ULong:
-            return llvm::Type::getInt64Ty(*theContext);
+            return llvm::Type::getInt64Ty(*llvmContext);
 
         case BuiltinType::String:
-            return llvm::PointerType::getUnqual(*theContext);
+            return llvm::PointerType::getUnqual(*llvmContext);
     }
 
     std::println(std::cerr,"Invalid BuiltinType value");
@@ -321,13 +321,13 @@ std::string_view TypeName::GetType() const
     return KeywordStrings.at(BuiltinTypeToKeyword(std::get<BuiltinType>(m_Type)));
 }
 
-TypeIdentifierPair::TypeIdentifierPair(std::unique_ptr<TypeName> type, std::string name)
+TypeIdentifierPair::TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name)
     : m_Type{std::move(type)}
     , m_Name{std::move(name)}
 {
 }
 
-FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
+FunctionPrototype::FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
     : m_TypeNamePair{std::move(typeNamePair)}
     , m_Parameters{std::move(parameters)}
 {
@@ -336,8 +336,8 @@ FunctionPrototype::FunctionPrototype(std::unique_ptr<TypeIdentifierPair> typeNam
 llvm::Function* FunctionPrototype::GenerateCode()
 {
     // Make the function type
-    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*theContext)};
-    llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*theContext), parameters, false);
+    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*llvmContext)};
+    llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*llvmContext), parameters, false);
 
     llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());
 

@@ -9,12 +9,12 @@ class Parser
 public:
     explicit Parser(const std::vector<Token>& tokens);
 
-    std::unique_ptr<Ast::Expression> ParseExpression();
-    std::unique_ptr<Ast::Statement> ParseTopLevelStatement();
+    std::shared_ptr<Ast::Expression> ParseExpression();
+    std::shared_ptr<Ast::Statement> ParseTopLevelStatement();
     /// @brief Parse a top-level variable or function declaration.
-    std::unique_ptr<Ast::Statement> ParseTopLevelDeclaration();
-    std::unique_ptr<Ast::Statement> ParseFunctionLevelStatement();
-    std::unique_ptr<Ast::Scope> ParseAll();
+    std::shared_ptr<Ast::Statement> ParseTopLevelDeclaration();
+    std::shared_ptr<Ast::Statement> ParseFunctionLevelStatement();
+    std::shared_ptr<Ast::Scope> ParseAll();
 
     ATTRIBUTE_NODISCARD
     const Token& GetCurrentToken() const;
@@ -35,38 +35,38 @@ private:
     /// @brief Parses the current token as an operator.
     /// @return If the current token isn't an operator (as of @c IsTokenOperator()), returns an empty optional.
     /// Otherwise, returns the corresponding operator based on the previous and next tokens.
-    std::optional<Operator> ParseCurrentOperator(const std::unique_ptr<Ast::Expression>& lhs);
+    std::optional<Operator> ParseCurrentOperator(const std::shared_ptr<Ast::Expression>& lhs);
 
-    std::unique_ptr<Ast::Expression> ParsePrimary();
-    std::unique_ptr<Ast::Expression> ParseIdentifier();
-    std::unique_ptr<Ast::Expression> ParseParentheses();
-    std::unique_ptr<Ast::Expression> ParseLiteral();
-    std::unique_ptr<Ast::Expression> ParseOperationRhs(s32 expressionPrecedence, std::unique_ptr<Ast::Expression> lhs);
-    std::unique_ptr<Ast::TypeName> ParseType();
-    std::unique_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
-    std::unique_ptr<Ast::IfElse> ParseIfElse();
+    std::shared_ptr<Ast::Expression> ParsePrimary();
+    std::shared_ptr<Ast::Expression> ParseIdentifier();
+    std::shared_ptr<Ast::Expression> ParseParentheses();
+    std::shared_ptr<Ast::Expression> ParseLiteral();
+    std::shared_ptr<Ast::Expression> ParseOperationRhs(s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs);
+    std::shared_ptr<Ast::TypeName> ParseType();
+    std::shared_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
+    std::shared_ptr<Ast::IfElse> ParseIfElse();
 
-    std::unique_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
+    std::shared_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
     /// @brief Parses a top-level scope such as namespaces or type definitions
-    std::unique_ptr<Ast::Scope> ParseTopLevelScope();
+    std::shared_ptr<Ast::Scope> ParseTopLevelScope();
     /// @brief Parses a function-level scope defined by either a wide arrow for a single-statement scope
     /// or curly braces for multi-statement scopes.
-    std::unique_ptr<Ast::Scope> ParseFunctionLevelScope();
+    std::shared_ptr<Ast::Scope> ParseFunctionLevelScope();
 
-    std::unique_ptr<Ast::Statement> ParseVariableDeclaration(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair);
-    std::unique_ptr<Ast::Statement> ParseFunction(std::unique_ptr<Ast::TypeIdentifierPair> typeNamePair);
+    std::shared_ptr<Ast::Statement> ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair);
+    std::shared_ptr<Ast::Statement> ParseFunction(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair);
     void ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Parameter>& output);
-    std::unique_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();
-    std::unique_ptr<Ast::FunctionDefinition> ParseFunctionDefinition();
+    std::shared_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();
+    std::shared_ptr<Ast::FunctionDefinition> ParseFunctionDefinition();
 
     template <typename T = Ast::Statement, typename... Args>
-    std::unique_ptr<T> RaiseError(const std::string& message, Args&&... args);
+    std::shared_ptr<T> RaiseError(const std::string& message, Args&&... args);
     template <typename... Args>
     void RaiseError(const Token& token, const std::string& message, Args&&... args);
 };
 
 template <typename T, typename ... Args>
-std::unique_ptr<T> Parser::RaiseError(const std::string& message, Args&&... args)
+std::shared_ptr<T> Parser::RaiseError(const std::string& message, Args&&... args)
 {
     RaiseError(GetCurrentToken(), message, std::forward<Args>(args)...);
     return nullptr;

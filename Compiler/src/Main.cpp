@@ -25,7 +25,7 @@ int main()
 
     Parser parser{tokens};
 
-    std::unique_ptr<Ast::Scope> topLevelScope = parser.ParseAll();
+    std::shared_ptr<Ast::Scope> topLevelScope = parser.ParseAll();
 
     std::println();
     std::cout.flush();
@@ -33,11 +33,11 @@ int main()
     if (parser.GetFailure())
         Utils::Exit(ErrorCodes::SyntaxError);
 
-    theContext = std::make_unique<llvm::LLVMContext>();
-    builder = std::make_unique<llvm::IRBuilder<>>(*theContext);
-    theModule = std::make_unique<llvm::Module>(inputFile.GetFilepath().generic_string(), *theContext);
+    llvmContext = std::make_shared<llvm::LLVMContext>();
+    builder = std::make_shared<llvm::IRBuilder<>>(*llvmContext);
+    theModule = std::make_shared<llvm::Module>(inputFile.GetFilepath().generic_string(), *llvmContext);
 
-    for (const std::unique_ptr<Ast::Statement>& statement : topLevelScope->GetBody())
+    for (const std::shared_ptr<Ast::Statement>& statement : topLevelScope->GetBody())
     {
         if (statement->GenerateCode() == nullptr)
             Utils::Exit(ErrorCodes::FatalError);
@@ -66,9 +66,9 @@ int main()
 
     std::println("JIT compiled program exited with code {}", lliResult);
 
-    /*if (int llcResult = Utils::SystemCommand("llc {}", IrOut))
+    if (int llcResult = Utils::SystemCommand("llc {}", IrOut))
     {
         std::println(std::cerr, "An error occurred during static compilation: llc exited with code {}", llcResult);
         Utils::Exit(ErrorCodes::FatalError);
-    }*/
+    }
 }

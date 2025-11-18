@@ -1,16 +1,16 @@
 
 int Sum(int a, int b) => a + b;
 
-int Func(int a, int b)
+/*int Func(int a, int b)
 {
     if (a)
         return a;
     return b;
-}
+}*/
 
 int main()
 {
-    return Func(1, 2);
+    return 22;//Func(1, 2);
 }
 
 /*
