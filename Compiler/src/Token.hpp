@@ -27,6 +27,8 @@ enum class TokenType : u8
     LiteralCharacter,
     LiteralString,
 
+    Colon,
+
     FirstOperator,
 
     Equals,
@@ -68,7 +70,6 @@ enum class TokenType : u8
 
     QuestionMark,
     DoubleQuestionMark,
-    Colon,
 
     PlusEquals,
     MinusEquals,
@@ -89,7 +90,7 @@ enum class TokenType : u8
 /// a token that can be converted to an @c Operator using @c BaseOperatorConversionLookup.
 /// @param tokenType The token type to check
 /// @return @c true if @p tokenType is an operator token, @c false otherwise
-constexpr bool IsTokenOperator(TokenType tokenType);
+constexpr bool TokenIsOperator(TokenType tokenType);
 
 constexpr std::array SimpleTokenList
 {
@@ -172,4 +173,4 @@ struct Token
 
 // Start of Token.inl
 
-constexpr bool IsTokenOperator(const TokenType tokenType) { return tokenType > TokenType::FirstOperator && tokenType < TokenType::LastOperator; }
+constexpr bool TokenIsOperator(const TokenType tokenType) { return tokenType > TokenType::FirstOperator && tokenType < TokenType::LastOperator; }

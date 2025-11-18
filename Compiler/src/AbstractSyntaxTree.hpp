@@ -10,7 +10,7 @@ namespace Ast
 {
     class Scope;
 
-    inline Scope* currentScope = nullptr;
+    inline std::shared_ptr<Scope> currentScope;
 
     /// @brief Helper class that represents a type name, i.e., either a builtin type such as @c int or a user-defined type.
     class TypeName
@@ -50,19 +50,23 @@ namespace Ast
         DEFAULT_COPY_MOVE_OPERATIONS(Statement)
 
         /// @returns For @c Expression, returns the expression result value. Otherwise, this returns @c nullptr.
-        virtual llvm::Value* GenerateCode() = 0;
+        ATTRIBUTE_NODISCARD
+        virtual llvm::Value* GenerateCode() const = 0;
 
         ATTRIBUTE_NODISCARD
         llvm::Value* LookupIdentifier(std::string_view name) const;
 
-        GETTER_M(Scope*, ParentScope)
+        GETTER_M(const std::shared_ptr<Scope>&, ParentScope)
 
     protected:
         template <typename T = llvm::Value, typename... Args>
-        T* RaiseError(const std::string& message, Args&&... args);
+        T* RaiseError(const std::string& message, Args&&... args) const;
+        template <typename... Args>
+        void RaiseWarning(const std::string& message, Args&&... args) const;
 
     private:
-        Scope* m_ParentScope = nullptr;
+        std::shared_ptr<Scope> m_ParentScope;
+        // Position m_Start, m_End; // TODO - Store file position for errors and warnings
     };
 
     class Expression : public Statement
@@ -79,7 +83,8 @@ namespace Ast
         explicit Scope(bool isFunctionLevel);
 
         /// @returns Always returns @c nullptr
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         ATTRIBUTE_NODISCARD
         bool IsSingleStatement() const;
@@ -101,7 +106,8 @@ namespace Ast
     public:
         explicit LiteralNumber(NumberType value);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(NumberType, Value)
 
@@ -114,7 +120,8 @@ namespace Ast
     public:
         explicit LiteralCharacter(c8 value);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(c8, Value)
 
@@ -127,7 +134,8 @@ namespace Ast
     public:
         explicit LiteralString(std::string value);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::string&, Value)
 
@@ -140,7 +148,8 @@ namespace Ast
     public:
         explicit VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<TypeIdentifierPair>&, TypeName)
 
@@ -153,7 +162,8 @@ namespace Ast
     public:
         explicit VariableUsage(std::string name);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::string&, Name)
 
@@ -166,7 +176,8 @@ namespace Ast
     public:
         Operation(Operator operatorType, std::shared_ptr<Expression> lhs, std::shared_ptr<Expression> rhs);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(Operator, OperatorType)
         GETTER_M(const std::shared_ptr<Expression>&, Lhs)
@@ -182,7 +193,8 @@ namespace Ast
     public:
         FunctionCall(std::string callee, std::vector<std::shared_ptr<Expression>> arguments);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::string&, Callee)
         GETTER_M(const std::vector<std::shared_ptr<Expression>>&, Arguments)
@@ -200,7 +212,8 @@ namespace Ast
 
         FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters);
 
-        llvm::Function* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Function* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<TypeIdentifierPair>&, TypeNamePair)
         GETTER_M(const std::vector<Parameter>&, Parameters)
@@ -216,7 +229,8 @@ namespace Ast
     public:
         FunctionDefinition(std::shared_ptr<FunctionPrototype> prototype, std::shared_ptr<Scope> body);
 
-        llvm::Function* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Function* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<FunctionPrototype>&, Prototype)
         GETTER_M(const std::shared_ptr<Scope>&, Body)
@@ -231,7 +245,8 @@ namespace Ast
     public:
         explicit FunctionReturn(std::shared_ptr<Expression> returnValue);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<Expression>&, ReturnValue)
 
@@ -244,7 +259,8 @@ namespace Ast
     public:
         explicit IfElse(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> ifBody, std::shared_ptr<Scope> elseBody);
 
-        llvm::Value* GenerateCode() override;
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<Expression>&, Condition)
         GETTER_M(const std::shared_ptr<Scope>&, IfBody)
@@ -254,6 +270,23 @@ namespace Ast
         std::shared_ptr<Expression> m_Condition;
         std::shared_ptr<Scope> m_IfBody, m_ElseBody;
     };
+
+    class Ternary : public Expression
+    {
+    public:
+        explicit Ternary(std::shared_ptr<Expression> condition, std::shared_ptr<Expression> trueResult, std::shared_ptr<Expression> falseResult);
+
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
+
+        GETTER_M(const std::shared_ptr<Expression>&, Condition)
+        GETTER_M(const std::shared_ptr<Expression>&, TrueResult)
+        GETTER_M(const std::shared_ptr<Expression>&, FalseResult)
+
+    private:
+        std::shared_ptr<Expression> m_Condition;
+        std::shared_ptr<Expression> m_TrueResult, m_FalseResult;
+    };
 }
 
 // Start of AST.inl
@@ -261,7 +294,7 @@ namespace Ast
 namespace Ast
 {
     template <typename T, typename... Args>
-    T* Statement::RaiseError(const std::string& message, Args&&... args)
+    T* Statement::RaiseError(const std::string& message, Args&&... args) const
     {
         std::println(
             std::cerr,
@@ -272,6 +305,16 @@ namespace Ast
         return nullptr;
     }
 
+    template <typename ... Args>
+    void Statement::RaiseWarning(const std::string& message, Args&&... args) const
+    {
+        std::println(
+            std::cout,
+            "Code generation warning: {}",
+            std::vformat(message, std::make_format_args(args...))
+        );
+    }
+
     template <std::integral NumberType>
     LiteralNumber<NumberType>::LiteralNumber(NumberType value)
         : m_Value{value}
@@ -279,7 +322,7 @@ namespace Ast
     }
 
     template <std::integral NumberType>
-    llvm::Value* LiteralNumber<NumberType>::GenerateCode()
+    llvm::Value* LiteralNumber<NumberType>::GenerateCode() const
     {
         if constexpr (std::is_same_v<NumberType, s32>)
             return llvm::ConstantInt::get(*llvmContext, llvm::APInt(32, m_Value, true));

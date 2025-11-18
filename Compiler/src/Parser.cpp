@@ -7,14 +7,17 @@ Parser::Parser(const std::vector<Token>& tokens)
 
 std::shared_ptr<Ast::Expression> Parser::ParseExpression()
 {
-    if (GetCurrentToken().type == TokenType::Semicolon)
-        return nullptr; // Empty expression
-
     std::shared_ptr<Ast::Expression> lhs = ParsePrimary();
     if (!lhs)
         return nullptr;
 
-    return ParseOperationRhs(-1, std::move(lhs));
+    if (GetCurrentToken().type == TokenType::QuestionMark)
+        return ParseTernary(lhs);
+
+    if (TokenIsOperator(GetCurrentToken().type))
+        return ParseOperationRhs(-1, std::move(lhs));
+
+    return lhs;
 }
 
 std::shared_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
@@ -71,7 +74,7 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
             {
                 case Keyword::Return:
                     SkipTokens(1);
-                    result = std::make_shared<Ast::FunctionReturn>(ParseExpression());
+                    result = std::make_shared<Ast::FunctionReturn>(GetCurrentToken().type == TokenType::Semicolon ? nullptr : ParseExpression());
                     break;
 
                 case Keyword::If:
@@ -108,7 +111,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseAll()
     Ast::currentScope = nullptr;
     auto topLevelScope = std::make_shared<Ast::Scope>(false);
     // ReSharper disable once CppDFALocalValueEscapesFunction
-    Ast::currentScope = topLevelScope.get();
+    Ast::currentScope = topLevelScope;
 
     do
         topLevelScope->GetBody().push_back(ParseTopLevelStatement());
@@ -142,9 +145,6 @@ const Token& Parser::PeekToken(const ptrdiff_t offset) const
 std::optional<Operator> Parser::ParseCurrentOperator(const std::shared_ptr<Ast::Expression>& lhs)
 {
     const Token& current = GetCurrentToken();
-
-    if (!IsTokenOperator(current.type))
-        return {};
 
     const auto InvalidToken = [current, this] -> std::optional<Operator>
     {
@@ -209,8 +209,13 @@ std::optional<Operator> Parser::ParseCurrentOperator(const std::shared_ptr<Ast::
                 return InvalidToken();
             return Operator::BinaryNot;
 
+        case TokenType::Minus:
+            if (hasPrevious)
+                return Operator::Subtraction;
+            return Operator::Negation;
+
         default:
-            return BaseOperatorConversionLookup.at(current.type);
+            return BaseOperatorConversionLookup.contains(current.type) ? BaseOperatorConversionLookup.at(current.type) : std::optional<Operator>{};
     }
 }
 
@@ -218,7 +223,7 @@ std::shared_ptr<Ast::Expression> Parser::ParsePrimary()
 {
     const Token& token = GetCurrentToken();
 
-    if (IsTokenOperator(token.type))
+    if (TokenIsOperator(token.type))
         return ParseOperationRhs(-1, nullptr); // Single-operand operation (e.g., dereference)
 
     switch (token.type)
@@ -318,6 +323,8 @@ std::shared_ptr<Ast::Expression> Parser::ParseLiteral()
 
 std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs)
 {
+    assert(TokenIsOperator(GetCurrentToken().type) && "ParseOperationRhs called on non-operator token");
+
     while (true)
     {
         const std::optional<Operator> optionalOperator = ParseCurrentOperator(lhs);
@@ -325,19 +332,26 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
             return lhs;
 
         const Operator op = optionalOperator.value();
-        const s32 opPrecedence = GetOperatorPrecedence(op);
+
+        if (!lhs && OperatorHasLeftOperand(op))
+            return RaiseError<Ast::Expression>("Operator {} expected a left operand", op);
+
+        if (op == Operator::Ternary)
+            return ParseTernary(std::move(lhs));
+
+        const s32 opPrecedence = OperatorGetPrecedence(op);
 
         if (opPrecedence < expressionPrecedence)
             return lhs;
 
         SkipTokens(1); // Skip the operator token
 
-        auto rhs = IsTokenOperator(GetCurrentToken().type) ? ParseOperationRhs(opPrecedence + 1, nullptr) : ParsePrimary();
-        if (!rhs)
+        auto rhs = TokenIsOperator(GetCurrentToken().type) ? ParseOperationRhs(opPrecedence + 1, nullptr) : ParsePrimary();
+        if (!rhs && OperatorHasRightOperand(op))
             return nullptr;
 
         const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator(nullptr);
-        const s32 nextOperatorPrecedence = nextOptionalOperator.has_value() ? GetOperatorPrecedence(nextOptionalOperator.value()) : -1;
+        const s32 nextOperatorPrecedence = nextOptionalOperator.has_value() ? OperatorGetPrecedence(nextOptionalOperator.value()) : -1;
 
         if (opPrecedence < nextOperatorPrecedence)
         {
@@ -429,6 +443,26 @@ std::shared_ptr<Ast::IfElse> Parser::ParseIfElse()
     return std::make_shared<Ast::IfElse>(std::move(condition), std::move(ifBody), std::move(elseBody));
 }
 
+std::shared_ptr<Ast::Ternary> Parser::ParseTernary(std::shared_ptr<Ast::Expression> condition)
+{
+    assert(GetCurrentToken().type == TokenType::QuestionMark);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> trueResult = ParseExpression();
+    if (!trueResult)
+        return nullptr;
+
+    if (GetCurrentToken().type != TokenType::Colon)
+        return RaiseError<Ast::Ternary>("Expected ':' in ternary expression, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> falseResult = ParseExpression();
+
+    return std::make_shared<Ast::Ternary>(std::move(condition), std::move(trueResult), std::move(falseResult));
+}
+
 std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 {
     switch (GetCurrentToken().type)
@@ -442,7 +476,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 
             auto result = std::make_shared<Ast::Scope>(true);
             // ReSharper disable once CppDFALocalValueEscapesFunction
-            Ast::currentScope = result.get();
+            Ast::currentScope = result;
 
             result->GetBody().push_back(std::make_shared<Ast::FunctionReturn>(ParseExpression()));
 
@@ -461,7 +495,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 
             auto result = std::make_shared<Ast::Scope>(isFunctionLevel);
             // ReSharper disable once CppDFALocalValueEscapesFunction
-            Ast::currentScope = result.get();
+            Ast::currentScope = result;
 
             const auto statementParseFunction = isFunctionLevel ? &Parser::ParseFunctionLevelStatement : &Parser::ParseTopLevelStatement;
 
@@ -483,7 +517,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
 
             auto result = std::make_shared<Ast::Scope>(true);
             // ReSharper disable once CppDFALocalValueEscapesFunction
-            Ast::currentScope = result.get();
+            Ast::currentScope = result;
 
             result->GetBody().push_back(ParseFunctionLevelStatement());
 
@@ -530,6 +564,7 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunction(std::shared_ptr<Ast::TypeI
     switch (GetCurrentToken().type)
     {
         case TokenType::Semicolon:
+            SkipTokens(1);
             return prototype;
 
         case TokenType::CurlyBraceOpen:

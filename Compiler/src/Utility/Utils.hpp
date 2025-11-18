@@ -134,6 +134,11 @@ namespace std
 }
 // ReSharper enable CppClangTidyCertDcl58Cpp
 
+namespace llvm
+{
+    unsigned getTypeBitSize(const Value* value);
+}
+
 // Start of Utils.inl
 
 namespace Utils

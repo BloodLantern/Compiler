@@ -1,16 +1,28 @@
 
-int Sum(int a, int b) => a + b;
+int putchar(int ch);
+void exit(int ch);
 
-/*int Func(int a, int b)
+int Sub(int a, int b) => a - b;
+
+int Func(int a, int b)
 {
-    if (a)
-        return a;
-    return b;
-}*/
+    if (a > b)
+        return Sub(a, b);
+    else
+        return Sub(b, a);
+}
 
 int main()
 {
-    return 22;//Func(1, 2);
+    putchar('H');
+    putchar('e');
+    putchar('l');
+    putchar('l');
+    putchar('o');
+    putchar('!');
+    putchar(10);
+    exit(-1);
+    return 0;
 }
 
 /*
@@ -31,19 +43,8 @@ void Func()
 
 char character = 'c';
 
-string text = "hello";
-
-int hello = 12 + value;
-
-int Add(int a, int b)
-{
-    return a + b;
-}
+string text = "hello";+
 
 void Func(out int i) { i = 1; }
 
-Func(out int i);
-
-hello = Add(hello, hello);
-
-hello <<= 2;*/
+Func(out int i);*/

@@ -71,7 +71,7 @@ enum class Operator : uint8_t
     Precedence13,
     PreIncrement,
     PreDecrement,
-    UnaryMinus,
+    Negation,
     LogicalNot,
     BinaryNot,
     Cast,
@@ -90,7 +90,9 @@ enum class Operator : uint8_t
     ScopeResolution,
 };
 
-constexpr int GetOperatorPrecedence(Operator op);
+constexpr int OperatorGetPrecedence(Operator op);
+constexpr bool OperatorHasLeftOperand(Operator op);
+constexpr bool OperatorHasRightOperand(Operator op);
 
 inline std::unordered_map BaseOperatorConversionLookup
 {
@@ -133,7 +135,6 @@ inline std::unordered_map BaseOperatorConversionLookup
 
     std::make_pair(TokenType::QuestionMark, Operator::Ternary),
     std::make_pair(TokenType::DoubleQuestionMark, Operator::NullCoalescing),
-    std::make_pair(TokenType::Colon, Operator::Ternary),
 
     std::make_pair(TokenType::PlusEquals, Operator::AddEquals),
     std::make_pair(TokenType::MinusEquals, Operator::SubtractEquals),
@@ -152,7 +153,7 @@ inline std::unordered_map BaseOperatorConversionLookup
 
 #define GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, precedence) if ((op) > Operator::Precedence##precedence) return (precedence) * 10;
 
-constexpr int GetOperatorPrecedence(const Operator op)
+constexpr int OperatorGetPrecedence(const Operator op)
 {
     GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 15)
     GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 14)
@@ -171,6 +172,168 @@ constexpr int GetOperatorPrecedence(const Operator op)
     GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE(op, 1)
 
     return 0;
+}
+
+constexpr bool OperatorHasLeftOperand(const Operator op)
+{
+    switch (op)
+    {
+        case Operator::None:
+        case Operator::Precedence0:
+        case Operator::Precedence1:
+        case Operator::Precedence2:
+        case Operator::Precedence3:
+        case Operator::Precedence4:
+        case Operator::Precedence5:
+        case Operator::Precedence6:
+        case Operator::Precedence7:
+        case Operator::Precedence8:
+        case Operator::Precedence9:
+        case Operator::Precedence10:
+        case Operator::Precedence11:
+        case Operator::Precedence12:
+        case Operator::Precedence13:
+        case Operator::Precedence14:
+        case Operator::Precedence15:
+            return false;
+
+        case Operator::Ternary:
+        case Operator::Assignment:
+        case Operator::AddEquals:
+        case Operator::SubtractEquals:
+        case Operator::MultiplyEquals:
+        case Operator::DivideEquals:
+        case Operator::ModuloEquals:
+        case Operator::BitshiftLeftEquals:
+        case Operator::BitshiftRightEquals:
+        case Operator::BinaryAndEquals:
+        case Operator::BinaryXorEquals:
+        case Operator::BinaryOrEquals:
+        case Operator::NullCoalescingEquals:
+        case Operator::WideArrow:
+        case Operator::NullCoalescing:
+        case Operator::LogicalOr:
+        case Operator::LogicalAnd:
+        case Operator::BinaryOr:
+        case Operator::BinaryXor:
+        case Operator::BinaryAnd:
+        case Operator::Equals:
+        case Operator::NotEquals:
+        case Operator::Less:
+        case Operator::LessEquals:
+        case Operator::Greater:
+        case Operator::GreaterEquals:
+        case Operator::BitshiftLeft:
+        case Operator::BitshiftRight:
+        case Operator::Addition:
+        case Operator::Subtraction:
+        case Operator::Multiplication:
+        case Operator::Division:
+        case Operator::Modulo:
+        case Operator::PointerToMemberDot:
+        case Operator::PointerToMemberArrow:
+        case Operator::FunctionCall:
+        case Operator::Subscript:
+        case Operator::MemberAccessDot:
+        case Operator::MemberAccessArrow:
+        case Operator::ScopeResolution:
+        case Operator::PostIncrement:
+        case Operator::PostDecrement:
+            return true;
+
+        case Operator::PreIncrement:
+        case Operator::PreDecrement:
+        case Operator::Negation:
+        case Operator::LogicalNot:
+        case Operator::BinaryNot:
+        case Operator::Cast:
+        case Operator::Dereference:
+        case Operator::AddressOf:
+            return false;
+    }
+
+    return false;
+}
+
+constexpr bool OperatorHasRightOperand(const Operator op)
+{
+    switch (op)
+    {
+        case Operator::None:
+        case Operator::Precedence0:
+        case Operator::Precedence1:
+        case Operator::Precedence2:
+        case Operator::Precedence3:
+        case Operator::Precedence4:
+        case Operator::Precedence5:
+        case Operator::Precedence6:
+        case Operator::Precedence7:
+        case Operator::Precedence8:
+        case Operator::Precedence9:
+        case Operator::Precedence10:
+        case Operator::Precedence11:
+        case Operator::Precedence12:
+        case Operator::Precedence13:
+        case Operator::Precedence14:
+        case Operator::Precedence15:
+            return false;
+
+        case Operator::Ternary:
+        case Operator::Assignment:
+        case Operator::AddEquals:
+        case Operator::SubtractEquals:
+        case Operator::MultiplyEquals:
+        case Operator::DivideEquals:
+        case Operator::ModuloEquals:
+        case Operator::BitshiftLeftEquals:
+        case Operator::BitshiftRightEquals:
+        case Operator::BinaryAndEquals:
+        case Operator::BinaryXorEquals:
+        case Operator::BinaryOrEquals:
+        case Operator::NullCoalescingEquals:
+        case Operator::WideArrow:
+        case Operator::NullCoalescing:
+        case Operator::LogicalOr:
+        case Operator::LogicalAnd:
+        case Operator::BinaryOr:
+        case Operator::BinaryXor:
+        case Operator::BinaryAnd:
+        case Operator::Equals:
+        case Operator::NotEquals:
+        case Operator::Less:
+        case Operator::LessEquals:
+        case Operator::Greater:
+        case Operator::GreaterEquals:
+        case Operator::BitshiftLeft:
+        case Operator::BitshiftRight:
+        case Operator::Addition:
+        case Operator::Subtraction:
+        case Operator::Multiplication:
+        case Operator::Division:
+        case Operator::Modulo:
+        case Operator::PointerToMemberDot:
+        case Operator::PointerToMemberArrow:
+        case Operator::FunctionCall:
+        case Operator::Subscript:
+        case Operator::MemberAccessDot:
+        case Operator::MemberAccessArrow:
+        case Operator::ScopeResolution:
+        case Operator::PreIncrement:
+        case Operator::PreDecrement:
+        case Operator::Negation:
+        case Operator::LogicalNot:
+        case Operator::BinaryNot:
+        case Operator::Cast:
+        case Operator::Dereference:
+        case Operator::AddressOf:
+            return true;
+
+        case Operator::PostIncrement:
+        case Operator::PostDecrement:
+            return false;
+    }
+
+    return false;
 }
 
 #undef GET_OPERATOR_PRECEDENCE_CHECK_PRECEDENCE

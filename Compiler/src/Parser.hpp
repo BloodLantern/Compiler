@@ -45,6 +45,7 @@ private:
     std::shared_ptr<Ast::TypeName> ParseType();
     std::shared_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
     std::shared_ptr<Ast::IfElse> ParseIfElse();
+    std::shared_ptr<Ast::Ternary> ParseTernary(std::shared_ptr<Ast::Expression> condition);
 
     std::shared_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
     /// @brief Parses a top-level scope such as namespaces or type definitions

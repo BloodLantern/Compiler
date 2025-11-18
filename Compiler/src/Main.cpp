@@ -16,19 +16,12 @@ int main()
     std::vector<Token> tokens;
     lexer.ParseAll(tokens);
 
-    // Lexer::PrintDebug(tokens);
-    // std::println(std::cout);
-    // std::cout.flush();
-
     if (lexer.GetFailure())
         Utils::Exit(ErrorCodes::FatalError);
 
     Parser parser{tokens};
 
     std::shared_ptr<Ast::Scope> topLevelScope = parser.ParseAll();
-
-    std::println();
-    std::cout.flush();
 
     if (parser.GetFailure())
         Utils::Exit(ErrorCodes::SyntaxError);

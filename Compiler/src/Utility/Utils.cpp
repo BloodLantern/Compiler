@@ -31,3 +31,8 @@ size_t std::replace_all(std::string& str, const std::string_view pattern, const 
     return occurrences;
 }
 // ReSharper enable CppClangTidyCertDcl58Cpp
+
+unsigned llvm::getTypeBitSize(const Value* value)
+{
+    return static_cast<u32>(value->getType()->getPrimitiveSizeInBits().getFixedValue());
+}

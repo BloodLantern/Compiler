@@ -36,7 +36,7 @@ Scope::Scope(const bool isFunctionLevel)
 {
 }
 
-llvm::Value* Scope::GenerateCode()
+llvm::Value* Scope::GenerateCode() const
 {
     for (size_t i = 0; i < m_Body.size() - 1; i++)
     {
@@ -56,7 +56,7 @@ LiteralCharacter::LiteralCharacter(const c8 value)
 {
 }
 
-llvm::Value* LiteralCharacter::GenerateCode()
+llvm::Value* LiteralCharacter::GenerateCode() const
 {
     return llvm::ConstantInt::get(*llvmContext, llvm::APInt{8, static_cast<uint32_t>(m_Value)});
 }
@@ -66,7 +66,7 @@ LiteralString::LiteralString(std::string value)
 {
 }
 
-llvm::Value* LiteralString::GenerateCode()
+llvm::Value* LiteralString::GenerateCode() const
 {
     return nullptr;
 }
@@ -76,7 +76,7 @@ VariableDeclaration::VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typ
 {
 }
 
-llvm::Value* VariableDeclaration::GenerateCode()
+llvm::Value* VariableDeclaration::GenerateCode() const
 {
     return RaiseError("Variable declarations are currently not supported"); // TODO - Add variable declarations support
 }
@@ -86,7 +86,7 @@ VariableUsage::VariableUsage(std::string name)
 {
 }
 
-llvm::Value* VariableUsage::GenerateCode()
+llvm::Value* VariableUsage::GenerateCode() const
 {
     llvm::Value* v = LookupIdentifier(m_Name);
     if (!v)
@@ -101,30 +101,67 @@ Operation::Operation(const Operator operatorType, std::shared_ptr<Expression> lh
 {
 }
 
-llvm::Value* Operation::GenerateCode()
+#define OPERATION_GENERATE_CODE_CHECK_OPERAND(operand, operandResult, check) \
+    if (check) \
+    { \
+        operandResult = operand->GenerateCode(); \
+        if (!operandResult) \
+            return nullptr; \
+    } \
+    else \
+    { \
+        operandResult = nullptr; \
+    }
+
+llvm::Value* Operation::GenerateCode() const
 {
-    assert(m_Lhs && "Unhandled operation");
+    llvm::Value* lhs;
+    OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Lhs, lhs, OperatorHasLeftOperand(m_OperatorType))
+    llvm::Value* rhs;
+    OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Rhs, rhs, OperatorHasRightOperand(m_OperatorType))
 
-    llvm::Value* lhs = m_Lhs->GenerateCode();
-    llvm::Value* rhs = m_Rhs->GenerateCode();
-
-    if (!lhs || !rhs)
-        return nullptr;
+    const std::string_view operatorName = magic_enum::enum_name(m_OperatorType);
+    static constexpr std::string_view NameSuffix = "Result";
+    std::string name{operatorName};
+    name += NameSuffix;
 
     switch (m_OperatorType)
     {
-        case Operator::Addition:
-            return builder->CreateAdd(lhs, rhs, "addtmp");
-        case Operator::Subtraction:
-            return builder->CreateSub(lhs, rhs, "subtmp");
-        case Operator::Multiplication:
-            return builder->CreateMul(lhs, rhs, "multmp");
-        case Operator::Division:
-            return builder->CreateSDiv(lhs, rhs, "divtmp");
-        default:
-            return RaiseError("Invalid binary operator: {}", m_OperatorType);
+        case Operator::Addition:        return builder->CreateAdd(lhs, rhs, name);
+        case Operator::Subtraction:     return builder->CreateSub(lhs, rhs, name);
+        case Operator::Multiplication:  return builder->CreateMul(lhs, rhs, name);
+        case Operator::Division:        return builder->CreateSDiv(lhs, rhs, name);
+        case Operator::Modulo:          return builder->CreateSRem(lhs, rhs, name);
+
+        case Operator::Equals:          return builder->CreateICmpEQ(lhs, rhs, name);
+        case Operator::NotEquals:       return builder->CreateICmpNE(lhs, rhs, name);
+        case Operator::Greater:         return builder->CreateICmpSGT(lhs, rhs, name);
+        case Operator::GreaterEquals:   return builder->CreateICmpSGE(lhs, rhs, name);
+        case Operator::Less:            return builder->CreateICmpSLT(lhs, rhs, name);
+        case Operator::LessEquals:      return builder->CreateICmpSLE(lhs, rhs, name);
+
+        case Operator::LogicalNot:      return builder->CreateIsNull(rhs, name);
+        case Operator::LogicalAnd:      return builder->CreateLogicalAnd(lhs, rhs, name);
+        case Operator::LogicalOr:       return builder->CreateLogicalOr(lhs, rhs, name);
+
+        case Operator::BitshiftLeft:    return builder->CreateShl(lhs, rhs, name);
+        case Operator::BitshiftRight:   return builder->CreateLShr(lhs, rhs, name); // TODO - Check shift type
+
+        case Operator::BinaryNot:       return builder->CreateNot(rhs, name);
+        case Operator::BinaryAnd:       return builder->CreateAnd(lhs, rhs, name);
+        case Operator::BinaryOr:        return builder->CreateOr(lhs, rhs, name);
+        case Operator::BinaryXor:       return builder->CreateXor(lhs, rhs, name);
+
+        case Operator::Negation:        return builder->CreateNeg(rhs, name);
+
+        case Operator::PreIncrement:    return builder->CreateAdd(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
+        case Operator::PreDecrement:    return builder->CreateSub(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
+
+        default: return RaiseError("Invalid binary operator: {}", m_OperatorType);
     }
 }
+
+#undef OPERATION_GENERATE_CODE_CHECK_OPERAND
 
 FunctionCall::FunctionCall(std::string callee, std::vector<std::shared_ptr<Expression>> arguments)
     : m_Callee{std::move(callee)}
@@ -132,7 +169,7 @@ FunctionCall::FunctionCall(std::string callee, std::vector<std::shared_ptr<Expre
 {
 }
 
-llvm::Value* FunctionCall::GenerateCode()
+llvm::Value* FunctionCall::GenerateCode() const
 {
     // Look up the name in the global module table
     llvm::Function* calleeFunction = theModule->getFunction(m_Callee);
@@ -150,7 +187,7 @@ llvm::Value* FunctionCall::GenerateCode()
             return nullptr;
     }
 
-    return builder->CreateCall(calleeFunction, arguments, "calltmp");
+    return builder->CreateCall(calleeFunction, arguments, "FunctionCallResult");
 }
 
 FunctionDefinition::FunctionDefinition(std::shared_ptr<FunctionPrototype> prototype, std::shared_ptr<Scope> body)
@@ -159,7 +196,7 @@ FunctionDefinition::FunctionDefinition(std::shared_ptr<FunctionPrototype> protot
 {
 }
 
-llvm::Function* FunctionDefinition::GenerateCode()
+llvm::Function* FunctionDefinition::GenerateCode() const
 {
     // First, check for an existing function from a previous declaration.
     llvm::Function* function = theModule->getFunction(m_Prototype->GetTypeNamePair()->GetName());
@@ -174,7 +211,7 @@ llvm::Function* FunctionDefinition::GenerateCode()
         return RaiseError<llvm::Function>("Function {} has already been defined", function->getName());
 
     // Create a new basic block to start insertion into
-    llvm::BasicBlock* block = llvm::BasicBlock::Create(*llvmContext, "entry", function);
+    llvm::BasicBlock* block = llvm::BasicBlock::Create(*llvmContext, "Entry", function);
     builder->SetInsertPoint(block);
 
     auto& identifiers = m_Body->GetIdentifiers();
@@ -201,7 +238,7 @@ FunctionReturn::FunctionReturn(std::shared_ptr<Expression> returnValue)
 {
 }
 
-llvm::Value* FunctionReturn::GenerateCode()
+llvm::Value* FunctionReturn::GenerateCode() const
 {
     if (!m_ReturnValue)
         return builder->CreateRet(nullptr); // Return void
@@ -219,54 +256,122 @@ IfElse::IfElse(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> ifB
 {
 }
 
-llvm::Value* IfElse::GenerateCode()
+llvm::Value* IfElse::GenerateCode() const
 {
     llvm::Value* condition = m_Condition->GenerateCode();
     if (!condition)
         return nullptr;
 
-    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{1, 0}), "ifcond");
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "IfCondition");
 
     llvm::Function* function = builder->GetInsertBlock()->getParent();
 
+    const bool hasElse = m_ElseBody != nullptr;
+
     // Create blocks for the if and else cases
     // Insert the 'if' block at the end of the function
-    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*llvmContext, "if", function);
-    llvm::BasicBlock* elseBlock = llvm::BasicBlock::Create(*llvmContext, "else");
-    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "ifcont");
+    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*llvmContext, "IfTrue", function);
+    llvm::BasicBlock* elseBlock = hasElse ? llvm::BasicBlock::Create(*llvmContext, "IfFalse") : nullptr;
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "IfEnd");
 
-    builder->CreateCondBr(condition, ifBlock, elseBlock);
+    builder->CreateCondBr(condition, ifBlock, hasElse ? elseBlock : mergeBlock);
 
     // Emit if value
     builder->SetInsertPoint(ifBlock);
 
-    llvm::Value* ifReturnValue = m_IfBody->GenerateCode();
+    llvm::Value* ifContents = m_IfBody->GenerateCode();
+    if (!ifContents)
+        return nullptr;
+
+    const bool ifBlockBranches = llvm::isa<llvm::ReturnInst>(ifContents) || llvm::isa<llvm::BranchInst>(ifContents);
+    if (!ifBlockBranches)
+        builder->CreateBr(mergeBlock);
+
+    bool elseBlockBranches = true;
+    llvm::Value* elseContents;
+    if (hasElse)
+    {
+        // Emit else block
+        function->insert(function->end(), elseBlock);
+        builder->SetInsertPoint(elseBlock);
+
+        elseContents = m_ElseBody->GenerateCode();
+        if (!elseContents)
+            return nullptr;
+
+        elseBlockBranches = llvm::isa<llvm::ReturnInst>(elseContents) || llvm::isa<llvm::BranchInst>(elseContents);
+        if (!elseBlockBranches)
+            builder->CreateBr(mergeBlock);
+    }
+
+    if (!ifBlockBranches || !elseBlockBranches)
+    {
+        // Emit merge block
+        function->insert(function->end(), mergeBlock);
+        builder->SetInsertPoint(mergeBlock);
+
+        return mergeBlock;
+    }
+
+    return hasElse ? elseContents : ifContents;
+}
+
+Ternary::Ternary(std::shared_ptr<Expression> condition, std::shared_ptr<Expression> trueResult, std::shared_ptr<Expression> falseResult)
+    : m_Condition{std::move(condition)}
+    , m_TrueResult{std::move(trueResult)}
+    , m_FalseResult{std::move(falseResult)}
+{
+}
+
+llvm::Value* Ternary::GenerateCode() const
+{
+    llvm::Value* condition = m_Condition->GenerateCode();
+    if (!condition)
+        return nullptr;
+
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "TernaryCondition");
+
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    // Create blocks for the true and false cases
+    // Insert the 'true' block at the end of the function
+    llvm::BasicBlock* trueBlock = llvm::BasicBlock::Create(*llvmContext, "TernaryTrue", function);
+    llvm::BasicBlock* falseBlock = llvm::BasicBlock::Create(*llvmContext, "TernaryFalse");
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "TernaryEnd");
+
+    builder->CreateCondBr(condition, trueBlock, falseBlock);
+
+    // Emit true value
+    builder->SetInsertPoint(trueBlock);
+
+    llvm::Value* ifReturnValue = m_TrueResult->GenerateCode();
     if (!ifReturnValue)
         return nullptr;
 
     builder->CreateBr(mergeBlock);
-    // Codegen of 'if' can change the current block, update ifBlock for the Phi
-    ifBlock = builder->GetInsertBlock();
+    // Codegen of 'true' can change the current block, update trueBlock for the Phi
+    trueBlock = builder->GetInsertBlock();
 
-    // Emit else block
-    function->insert(function->end(), elseBlock);
-    builder->SetInsertPoint(elseBlock);
+    // Emit false block
+    function->insert(function->end(), falseBlock);
+    builder->SetInsertPoint(falseBlock);
 
-    llvm::Value* elseReturnValue = m_ElseBody->GenerateCode();
+    llvm::Value* elseReturnValue = m_FalseResult->GenerateCode();
     if (!elseReturnValue)
         return nullptr;
 
     builder->CreateBr(mergeBlock);
-    // Codegen of 'else' can change the current block, update elseBlock for the Phi
-    elseBlock = builder->GetInsertBlock();
+    // Codegen of 'false' can change the current block, update falseBlock for the Phi
+    falseBlock = builder->GetInsertBlock();
 
     // Emit merge block
     function->insert(function->end(), mergeBlock);
     builder->SetInsertPoint(mergeBlock);
-    llvm::PHINode* phiNode = builder->CreatePHI(llvm::Type::getInt32Ty(*llvmContext), 2, "iftmp");
 
-    phiNode->addIncoming(ifReturnValue, ifBlock);
-    phiNode->addIncoming(elseReturnValue, elseBlock);
+    llvm::PHINode* phiNode = builder->CreatePHI(llvm::Type::getInt32Ty(*llvmContext), 2, "TernaryResult");
+    phiNode->addIncoming(ifReturnValue, trueBlock);
+    phiNode->addIncoming(elseReturnValue, falseBlock);
+
     return phiNode;
 }
 
@@ -333,7 +438,7 @@ FunctionPrototype::FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNam
 {
 }
 
-llvm::Function* FunctionPrototype::GenerateCode()
+llvm::Function* FunctionPrototype::GenerateCode() const
 {
     // Make the function type
     const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*llvmContext)};
