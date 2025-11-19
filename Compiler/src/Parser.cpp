@@ -11,7 +11,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseExpression()
     if (!lhs)
         return nullptr;
 
-    if (TokenIsOperator(GetCurrentToken().type))
+    if (TokenTypeIsOperator(GetCurrentToken().type))
         return ParseOperationRhs(-1, std::move(lhs));
 
     return lhs;
@@ -20,25 +20,27 @@ std::shared_ptr<Ast::Expression> Parser::ParseExpression()
 std::shared_ptr<Ast::Statement> Parser::ParseTopLevelStatement()
 {
     const Token& token = GetCurrentToken();
-    switch (token.type)
+    if (token.IsTypeTokenOrIdentifier())
+        return ParseTopLevelDeclaration();
+
+    auto result = RaiseError("Unexpected token {}", token.type);
+    SkipTokens(1);
+    return result;
+
+    /*switch (token.type)
     {
         case TokenType::Keyword:
         {
             const auto keyword = std::get<Keyword>(token.value.value());
-            if (IsKeywordType(keyword))
-                return ParseTopLevelDeclaration();
 
             SkipTokens(1);
             return RaiseError("Unexpected keyword {}", keyword);
         }
 
-        case TokenType::Identifier:
-            return ParseTopLevelDeclaration();
-
         default:
             SkipTokens(1);
             return RaiseError("Unexpected token {}", token.type);
-    }
+    }*/
 }
 
 std::shared_ptr<Ast::Statement> Parser::ParseTopLevelDeclaration()
@@ -56,43 +58,42 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
     std::shared_ptr<Ast::Statement> result;
 
     const Token& token = GetCurrentToken();
-    switch (token.type)
+    if (token.IsTypeTokenOrIdentifier())
     {
-        case TokenType::Keyword:
+        if (PeekToken(1).type == TokenType::Identifier)
+            result = ParseVariableDeclaration(ParseTypeIdentifierPair());
+        else
+            result = ParseExpression();
+    }
+    else
+    {
+        switch (token.type)
         {
-            const auto keyword = std::get<Keyword>(token.value.value());
-            if (IsKeywordType(keyword))
+            case TokenType::Keyword:
             {
-                result = ParseExpression();
+                switch (const auto keyword = std::get<Keyword>(token.value.value()))
+                {
+                    case Keyword::Return:
+                        SkipTokens(1);
+                        result = std::make_shared<Ast::FunctionReturn>(GetCurrentToken().type == TokenType::Semicolon ? nullptr : ParseExpression());
+                        break;
+
+                    case Keyword::If:
+                        return ParseIfElse();
+
+                    default:
+                        result = RaiseError("Invalid keyword in statement: {}", keyword);
+                        SkipTokens(1);
+                        break;
+                }
                 break;
             }
 
-            switch (keyword)
-            {
-                case Keyword::Return:
-                    SkipTokens(1);
-                    result = std::make_shared<Ast::FunctionReturn>(GetCurrentToken().type == TokenType::Semicolon ? nullptr : ParseExpression());
-                    break;
-
-                case Keyword::If:
-                    return ParseIfElse();
-
-                default:
-                    result = RaiseError("Invalid keyword in statement: {}", keyword);
-                    SkipTokens(1);
-                    break;
-            }
-            break;
+            default:
+                result = RaiseError("Invalid token in statement: {}", token.type);
+                SkipTokens(1);
+                break;
         }
-
-        case TokenType::Identifier:
-            result = ParseExpression();
-            break;
-
-        default:
-            result = RaiseError("Invalid token in statement: {}", token.type);
-            SkipTokens(1);
-            break;
     }
 
     if (GetCurrentToken().type != TokenType::Semicolon) // TODO - Might need to check for curly braces
@@ -220,7 +221,7 @@ std::shared_ptr<Ast::Expression> Parser::ParsePrimary()
 {
     const Token& token = GetCurrentToken();
 
-    if (TokenIsOperator(token.type))
+    if (TokenTypeIsOperator(token.type))
         return ParseOperationRhs(-1, nullptr); // Single-operand operation (e.g., dereference)
 
     switch (token.type)
@@ -320,7 +321,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseLiteral()
 
 std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs)
 {
-    assert(TokenIsOperator(GetCurrentToken().type) && "ParseOperationRhs called on non-operator token");
+    assert(TokenTypeIsOperator(GetCurrentToken().type) && "ParseOperationRhs called on non-operator token");
 
     while (true)
     {
@@ -343,7 +344,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
 
         SkipTokens(1); // Skip the operator token
 
-        auto rhs = TokenIsOperator(GetCurrentToken().type) ? ParseOperationRhs(opPrecedence + 1, nullptr) : ParsePrimary();
+        auto rhs = TokenTypeIsOperator(GetCurrentToken().type) ? ParseOperationRhs(opPrecedence + 1, nullptr) : ParsePrimary();
         if (!rhs && OperatorHasRightOperand(op))
             return nullptr;
 
@@ -375,7 +376,7 @@ std::shared_ptr<Ast::TypeName> Parser::ParseType()
         case TokenType::Keyword:
         {
             auto keyword = std::get<Keyword>(token.value.value());
-            if (!IsKeywordType(keyword))
+            if (!KeywordIsType(keyword))
                 return RaiseError<Ast::TypeName>("Expected a type keyword, got {}", keyword);
             type = KeywordToBuiltinType(keyword);
             break;
@@ -539,10 +540,11 @@ std::shared_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::shared_ptr
     switch (currentToken.type)
     {
         case TokenType::Equals:
-            return nullptr; // TODO
+            SkipTokens(1);
+            return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair), ParseExpression());
 
         case TokenType::Semicolon:
-            return nullptr; // TODO
+            return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair));
 
         default:
             return RaiseError("Expected either '=' or ';' in variable declaration, got {}", currentToken.type);

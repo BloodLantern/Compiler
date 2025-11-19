@@ -9,7 +9,7 @@ Statement::Statement()
 {
 }
 
-llvm::Value* Statement::LookupIdentifier(const std::string_view name) const
+llvm::AllocaInst* Statement::LookupIdentifier(const std::string& name) const
 {
     if (!m_ParentScope)
         return nullptr;
@@ -17,6 +17,11 @@ llvm::Value* Statement::LookupIdentifier(const std::string_view name) const
     if (!m_ParentScope->GetIdentifiers().contains(name))
         return m_ParentScope->LookupIdentifier(name);
     return m_ParentScope->GetIdentifiers().at(name);
+}
+
+void Statement::DeclareIdentifier(const std::string& name, llvm::AllocaInst* variable) const
+{
+    m_ParentScope->GetIdentifiers()[name] = variable;
 }
 
 Scope::Scope(std::vector<std::shared_ptr<Statement>> body, const bool isFunctionLevel)
@@ -76,9 +81,28 @@ VariableDeclaration::VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typ
 {
 }
 
+VariableDeclaration::VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName, std::shared_ptr<Expression> initialValue)
+    : m_TypeName{std::move(typeName)}
+    , m_InitialValue{std::move(initialValue)}
+{
+}
+
 llvm::Value* VariableDeclaration::GenerateCode() const
 {
-    return RaiseError("Variable declarations are currently not supported"); // TODO - Add variable declarations support
+    const auto variableName = m_TypeName->GetName();
+    const auto allocatedVariable = CreateEntryBlockAlloca(builder->GetInsertBlock()->getParent(), variableName);
+
+    if (m_InitialValue)
+    {
+        llvm::Value* initialValue = m_InitialValue->GenerateCode();
+        if (!initialValue)
+            return nullptr;
+
+        builder->CreateStore(initialValue, allocatedVariable);
+    }
+
+    DeclareIdentifier(variableName, allocatedVariable);
+    return allocatedVariable;
 }
 
 VariableUsage::VariableUsage(std::string name)
@@ -88,10 +112,10 @@ VariableUsage::VariableUsage(std::string name)
 
 llvm::Value* VariableUsage::GenerateCode() const
 {
-    llvm::Value* v = LookupIdentifier(m_Name);
+    llvm::AllocaInst* v = LookupIdentifier(m_Name);
     if (!v)
         return RaiseError("Unknown variable name: {}", m_Name);
-    return v;
+    return builder->CreateLoad(v->getAllocatedType(), v, m_Name);
 }
 
 Operation::Operation(const Operator operatorType, std::shared_ptr<Expression> lhs, std::shared_ptr<Expression> rhs)
@@ -157,6 +181,8 @@ llvm::Value* Operation::GenerateCode() const
         case Operator::PreIncrement:    return builder->CreateAdd(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
         case Operator::PreDecrement:    return builder->CreateSub(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
 
+        case Operator::Assignment:      return builder->CreateStore(rhs, LookupIdentifier(std::dynamic_pointer_cast<VariableUsage>(m_Lhs)->GetName())); // FIXME - This generates useless code and assumes that lhs is a VariableUsage
+
         default: return RaiseError("Invalid binary operator: {}", m_OperatorType);
     }
 }
@@ -218,7 +244,11 @@ llvm::Function* FunctionDefinition::GenerateCode() const
     // Record the function arguments in the identifier map
     identifiers.clear();
     for (llvm::Argument& argument : function->args())
-        identifiers[argument.getName().data()] = &argument;
+    {
+        const auto allocatedVariable = CreateEntryBlockAlloca(function, argument.getName());
+        builder->CreateStore(&argument, allocatedVariable);
+        identifiers[argument.getName().data()] = allocatedVariable;
+    }
 
     if (!m_Body->GenerateCode()) // If body code generation failed
     {
@@ -373,6 +403,13 @@ llvm::Value* Ternary::GenerateCode() const
     phiNode->addIncoming(elseReturnValue, falseBlock);
 
     return phiNode;
+}
+
+llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)
+{
+    auto& entryBlock = function->getEntryBlock();
+    llvm::IRBuilder temporaryBuilder{&entryBlock, entryBlock.begin()};
+    return temporaryBuilder.CreateAlloca(llvm::Type::getInt32Ty(*llvmContext), nullptr, variableName);
 }
 
 TypeName::TypeName(std::variant<std::string, BuiltinType> type)

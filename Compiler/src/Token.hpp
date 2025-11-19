@@ -90,7 +90,7 @@ enum class TokenType : u8
 /// a token that can be converted to an @c Operator using @c BaseOperatorConversionLookup.
 /// @param tokenType The token type to check
 /// @return @c true if @p tokenType is an operator token, @c false otherwise
-constexpr bool TokenIsOperator(TokenType tokenType);
+constexpr bool TokenTypeIsOperator(TokenType tokenType);
 
 constexpr std::array SimpleTokenList
 {
@@ -169,8 +169,19 @@ struct Token
 
     const InputFile* inputFile = nullptr;
     Position position;
+
+    /// @brief Checks whether the token is a type token, i.e., a token that is either an identifier or a builtin type keyword.
+    /// @return @c true if the token is a type token, @c false otherwise
+    ATTRIBUTE_NODISCARD
+    constexpr bool IsTypeTokenOrIdentifier() const;
 };
 
 // Start of Token.inl
 
-constexpr bool TokenIsOperator(const TokenType tokenType) { return tokenType > TokenType::FirstOperator && tokenType < TokenType::LastOperator; }
+constexpr bool TokenTypeIsOperator(const TokenType tokenType) { return tokenType > TokenType::FirstOperator && tokenType < TokenType::LastOperator; }
+
+constexpr bool Token::IsTypeTokenOrIdentifier() const
+{
+    return type == TokenType::Identifier
+        || (type == TokenType::Keyword && KeywordIsType(std::get<Keyword>(value.value())));
+}

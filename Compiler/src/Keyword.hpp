@@ -66,7 +66,7 @@ enum class Keyword : uint8_t
 /// @brief Checks whether the given @c Keyword is a type keyword, e.g., @c Keyword::Void, @c Keyword::Int, etc...
 /// @param keyword The keyword to check
 /// @return @c true if @p keyword is a type keyword, @c false otherwise
-constexpr bool IsKeywordType(Keyword keyword);
+constexpr bool KeywordIsType(Keyword keyword);
 
 constexpr BuiltinType KeywordToBuiltinType(Keyword keyword);
 constexpr Keyword BuiltinTypeToKeyword(BuiltinType builtinType);
@@ -140,7 +140,7 @@ inline std::unordered_map KeywordStrings
 
 // Start of Keyword.inl
 
-constexpr bool IsKeywordType(const Keyword keyword) { return keyword > Keyword::FirstType && keyword < Keyword::LastType; }
+constexpr bool KeywordIsType(const Keyword keyword) { return keyword > Keyword::FirstType && keyword < Keyword::LastType; }
 
 constexpr BuiltinType KeywordToBuiltinType(Keyword keyword)
 {

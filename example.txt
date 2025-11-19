@@ -9,8 +9,25 @@ int Func(int a, int b)
     return a > b ? Sub(a, b) : Sub(b, a);
 }
 
+int Func2(int param)
+{
+    if (param == 0)
+        putchar('0');
+    else
+    {
+        putchar('!');
+        putchar('0');
+    }
+
+    return 0;
+}
+
 int main()
 {
+    int i;
+    int j = 2;
+    i = j;
+
     putchar('H');
     putchar('e');
     putchar('l');
@@ -19,7 +36,12 @@ int main()
     putchar('!');
     putchar(10);
 
-    return 0;
+    Func2(0);
+    putchar(10);
+    Func2(1);
+    putchar(10);
+
+    return i + j;
 }
 
 /*

@@ -12,6 +12,8 @@ namespace Ast
 
     inline std::shared_ptr<Scope> currentScope;
 
+    llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Function* function, llvm::StringRef variableName);
+
     /// @brief Helper class that represents a type name, i.e., either a builtin type such as @c int or a user-defined type.
     class TypeName
     {
@@ -54,7 +56,8 @@ namespace Ast
         virtual llvm::Value* GenerateCode() const = 0;
 
         ATTRIBUTE_NODISCARD
-        llvm::Value* LookupIdentifier(std::string_view name) const;
+        llvm::AllocaInst* LookupIdentifier(const std::string& name) const;
+        void DeclareIdentifier(const std::string& name, llvm::AllocaInst* variable) const;
 
         GETTER_M(const std::shared_ptr<Scope>&, ParentScope)
 
@@ -76,7 +79,7 @@ namespace Ast
     class Scope : public Statement
     {
     public:
-        using IdentifierMap = std::unordered_map<std::string_view, llvm::Value*>;
+        using IdentifierMap = std::unordered_map<std::string, llvm::AllocaInst*>;
 
         Scope(std::vector<std::shared_ptr<Statement>> body, bool isFunctionLevel);
         Scope(std::shared_ptr<Statement> body, bool isFunctionLevel);
@@ -147,14 +150,17 @@ namespace Ast
     {
     public:
         explicit VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName);
+        VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName, std::shared_ptr<Expression> initialValue);
 
         ATTRIBUTE_NODISCARD
         llvm::Value* GenerateCode() const override;
 
         GETTER_M(const std::shared_ptr<TypeIdentifierPair>&, TypeName)
+        GETTER_M(const std::shared_ptr<Expression>&, InitialValue)
 
     private:
         std::shared_ptr<TypeIdentifierPair> m_TypeName;
+        std::shared_ptr<Expression> m_InitialValue;
     };
 
     class VariableUsage : public Expression
