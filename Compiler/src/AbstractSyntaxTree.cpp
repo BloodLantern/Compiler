@@ -11,8 +11,7 @@ Statement::Statement()
 
 llvm::AllocaInst* Statement::LookupIdentifier(const std::string& name) const
 {
-    if (!m_ParentScope)
-        return nullptr;
+    RETURN_IF_NULL(m_ParentScope);
 
     if (!m_ParentScope->GetIdentifiers().contains(name))
         return m_ParentScope->LookupIdentifier(name);
@@ -45,8 +44,7 @@ llvm::Value* Scope::GenerateCode() const
 {
     for (size_t i = 0; i < m_Body.size() - 1; i++)
     {
-        if (m_Body[i]->GenerateCode() == nullptr)
-            return nullptr;
+        RETURN_IF_NULL(m_Body[i]->GenerateCode());
     }
     return m_Body[m_Body.size() - 1]->GenerateCode();
 }
@@ -95,8 +93,7 @@ llvm::Value* VariableDeclaration::GenerateCode() const
     if (m_InitialValue)
     {
         llvm::Value* initialValue = m_InitialValue->GenerateCode();
-        if (!initialValue)
-            return nullptr;
+        RETURN_IF_NULL(initialValue);
 
         builder->CreateStore(initialValue, allocatedVariable);
     }
@@ -230,8 +227,7 @@ llvm::Function* FunctionDefinition::GenerateCode() const
     if (!function)
         function = m_Prototype->GenerateCode();
 
-    if (!function)
-        return nullptr;
+    RETURN_IF_NULL(function);
 
     if (!function->empty())
         return RaiseError<llvm::Function>("Function {} has already been defined", function->getName());
@@ -274,8 +270,7 @@ llvm::Value* FunctionReturn::GenerateCode() const
         return builder->CreateRet(nullptr); // Return void
 
     llvm::Value* returnValue = m_ReturnValue->GenerateCode();
-    if (!returnValue)
-        return nullptr;
+    RETURN_IF_NULL(returnValue);
     return builder->CreateRet(returnValue);
 }
 
@@ -289,8 +284,7 @@ IfElse::IfElse(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> ifB
 llvm::Value* IfElse::GenerateCode() const
 {
     llvm::Value* condition = m_Condition->GenerateCode();
-    if (!condition)
-        return nullptr;
+    RETURN_IF_NULL(condition);
 
     condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "IfCondition");
 
@@ -310,10 +304,9 @@ llvm::Value* IfElse::GenerateCode() const
     builder->SetInsertPoint(ifBlock);
 
     llvm::Value* ifContents = m_IfBody->GenerateCode();
-    if (!ifContents)
-        return nullptr;
+    RETURN_IF_NULL(ifContents);
 
-    const bool ifBlockBranches = llvm::isa<llvm::ReturnInst>(ifContents) || llvm::isa<llvm::BranchInst>(ifContents);
+    const bool ifBlockBranches = llvm::isa<llvm::ReturnInst, llvm::BranchInst>(ifContents);
     if (!ifBlockBranches)
         builder->CreateBr(mergeBlock);
 
@@ -326,10 +319,9 @@ llvm::Value* IfElse::GenerateCode() const
         builder->SetInsertPoint(elseBlock);
 
         elseContents = m_ElseBody->GenerateCode();
-        if (!elseContents)
-            return nullptr;
+        RETURN_IF_NULL(elseContents);
 
-        elseBlockBranches = llvm::isa<llvm::ReturnInst>(elseContents) || llvm::isa<llvm::BranchInst>(elseContents);
+        elseBlockBranches = llvm::isa<llvm::ReturnInst, llvm::BranchInst>(elseContents);
         if (!elseBlockBranches)
             builder->CreateBr(mergeBlock);
     }
@@ -356,8 +348,7 @@ Ternary::Ternary(std::shared_ptr<Expression> condition, std::shared_ptr<Expressi
 llvm::Value* Ternary::GenerateCode() const
 {
     llvm::Value* condition = m_Condition->GenerateCode();
-    if (!condition)
-        return nullptr;
+    RETURN_IF_NULL(condition);
 
     condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "TernaryCondition");
 
@@ -375,8 +366,7 @@ llvm::Value* Ternary::GenerateCode() const
     builder->SetInsertPoint(trueBlock);
 
     llvm::Value* ifReturnValue = m_TrueResult->GenerateCode();
-    if (!ifReturnValue)
-        return nullptr;
+    RETURN_IF_NULL(ifReturnValue);
 
     builder->CreateBr(mergeBlock);
     // Codegen of 'true' can change the current block, update trueBlock for the Phi
@@ -387,8 +377,7 @@ llvm::Value* Ternary::GenerateCode() const
     builder->SetInsertPoint(falseBlock);
 
     llvm::Value* elseReturnValue = m_FalseResult->GenerateCode();
-    if (!elseReturnValue)
-        return nullptr;
+    RETURN_IF_NULL(elseReturnValue);
 
     builder->CreateBr(mergeBlock);
     // Codegen of 'false' can change the current block, update falseBlock for the Phi
@@ -403,6 +392,44 @@ llvm::Value* Ternary::GenerateCode() const
     phiNode->addIncoming(elseReturnValue, falseBlock);
 
     return phiNode;
+}
+
+WhileLoop::WhileLoop(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> body)
+    : m_Condition{std::move(condition)}
+    , m_Body{std::move(body)}
+{
+}
+
+llvm::Value* WhileLoop::GenerateCode() const
+{
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock* loopConditionBlock = llvm::BasicBlock::Create(*llvmContext, "WhileLoopCondition", function);
+    llvm::BasicBlock* loopBlock = llvm::BasicBlock::Create(*llvmContext, "WhileLoopBody");
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "WhileLoopEnd");
+
+    builder->CreateBr(loopConditionBlock);
+
+    builder->SetInsertPoint(loopConditionBlock);
+
+    llvm::Value* condition = m_Condition->GenerateCode();
+    RETURN_IF_NULL(condition);
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "WhileLoopConditionResult");
+
+    builder->CreateCondBr(condition, loopBlock, mergeBlock);
+
+    function->insert(function->end(), loopBlock);
+    builder->SetInsertPoint(loopBlock);
+
+    const llvm::Value* loopContents = m_Body->GenerateCode();
+    RETURN_IF_NULL(loopContents);
+
+    builder->CreateBr(loopConditionBlock);
+
+    function->insert(function->end(), mergeBlock);
+    builder->SetInsertPoint(mergeBlock);
+
+    return mergeBlock;
 }
 
 llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)

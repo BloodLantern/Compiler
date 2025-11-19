@@ -293,6 +293,22 @@ namespace Ast
         std::shared_ptr<Expression> m_Condition;
         std::shared_ptr<Expression> m_TrueResult, m_FalseResult;
     };
+
+    class WhileLoop : public Expression
+    {
+    public:
+        explicit WhileLoop(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> body);
+
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
+
+        GETTER_M(const std::shared_ptr<Expression>&, Condition)
+        GETTER_M(const std::shared_ptr<Scope>&, Body)
+
+    private:
+        std::shared_ptr<Expression> m_Condition;
+        std::shared_ptr<Scope> m_Body;
+    };
 }
 
 // Start of AST.inl

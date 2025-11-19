@@ -25,8 +25,14 @@ int Func2(int param)
 int main()
 {
     int i;
-    int j = 2;
+    int j = 10;
     i = j;
+
+    while (i > 0)
+    {
+        i = i - 1;
+        Func2(i);
+    }
 
     putchar('H');
     putchar('e');
@@ -41,7 +47,7 @@ int main()
     Func2(1);
     putchar(10);
 
-    return i + j;
+    return 0;
 }
 
 /*

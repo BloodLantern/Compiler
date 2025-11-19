@@ -8,8 +8,7 @@ Parser::Parser(const std::vector<Token>& tokens)
 std::shared_ptr<Ast::Expression> Parser::ParseExpression()
 {
     std::shared_ptr<Ast::Expression> lhs = ParsePrimary();
-    if (!lhs)
-        return nullptr;
+    RETURN_IF_NULL(lhs);
 
     if (TokenTypeIsOperator(GetCurrentToken().type))
         return ParseOperationRhs(-1, std::move(lhs));
@@ -80,6 +79,9 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
 
                     case Keyword::If:
                         return ParseIfElse();
+
+                    case Keyword::While:
+                        return ParseWhileLoop();
 
                     default:
                         result = RaiseError("Invalid keyword in statement: {}", keyword);
@@ -281,8 +283,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseParentheses()
 {
     SkipTokens(1);
     std::shared_ptr<Ast::Expression> expression = ParseExpression();
-    if (!expression)
-        return nullptr;
+    RETURN_IF_NULL(expression);
 
     const Token& next = GetCurrentToken();
     if (next.type != TokenType::ParenthesisClose)
@@ -354,8 +355,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
         if (opPrecedence < nextOperatorPrecedence)
         {
             rhs = ParseOperationRhs(opPrecedence + 1, std::move(rhs));
-            if (!rhs)
-                return nullptr;
+            RETURN_IF_NULL(rhs);
         }
 
         lhs = std::make_shared<Ast::Operation>(op, std::move(lhs), std::move(rhs));
@@ -394,8 +394,7 @@ std::shared_ptr<Ast::TypeName> Parser::ParseType()
 std::shared_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
 {
     std::shared_ptr<Ast::TypeName> type = ParseType();
-    if (!type)
-        return nullptr;
+    RETURN_IF_NULL(type);
 
     const Token& name = GetCurrentToken();
 
@@ -413,29 +412,18 @@ std::shared_ptr<Ast::IfElse> Parser::ParseIfElse()
 
     SkipTokens(1);
 
-    if (GetCurrentToken().type != TokenType::ParenthesisOpen)
-        return RaiseError<Ast::IfElse>("Expected '(' in if statement, got {}", GetCurrentToken().type);
-
-    SkipTokens(1);
-
-    std::shared_ptr<Ast::Expression> condition = ParseExpression();
-    if (!condition)
-        return nullptr;
-
-    if (GetCurrentToken().type != TokenType::ParenthesisClose)
-        return RaiseError<Ast::IfElse>("Expected ')' in if statement, got {}", GetCurrentToken().type);
-
-    SkipTokens(1);
+    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    RETURN_IF_NULL(condition);
 
     std::shared_ptr<Ast::Scope> ifBody = ParseFunctionLevelScope();
-    if (!ifBody)
-        return nullptr;
+    RETURN_IF_NULL(ifBody);
 
     std::shared_ptr<Ast::Scope> elseBody;
     if (GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::Else)
     {
         SkipTokens(1);
         elseBody = ParseFunctionLevelScope();
+        RETURN_IF_NULL(elseBody);
     }
 
     return std::make_shared<Ast::IfElse>(std::move(condition), std::move(ifBody), std::move(elseBody));
@@ -448,8 +436,7 @@ std::shared_ptr<Ast::Ternary> Parser::ParseTernary(std::shared_ptr<Ast::Expressi
     SkipTokens(1);
 
     std::shared_ptr<Ast::Expression> trueResult = ParseExpression();
-    if (!trueResult)
-        return nullptr;
+    RETURN_IF_NULL(trueResult);
 
     if (GetCurrentToken().type != TokenType::Colon)
         return RaiseError<Ast::Ternary>("Expected ':' in ternary expression, got {}", GetCurrentToken().type);
@@ -457,8 +444,42 @@ std::shared_ptr<Ast::Ternary> Parser::ParseTernary(std::shared_ptr<Ast::Expressi
     SkipTokens(1);
 
     std::shared_ptr<Ast::Expression> falseResult = ParseExpression();
+    RETURN_IF_NULL(falseResult);
 
     return std::make_shared<Ast::Ternary>(std::move(condition), std::move(trueResult), std::move(falseResult));
+}
+
+std::shared_ptr<Ast::WhileLoop> Parser::ParseWhileLoop()
+{
+    assert(GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::While);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    RETURN_IF_NULL(condition);
+
+    std::shared_ptr<Ast::Scope> body = ParseFunctionLevelScope();
+    RETURN_IF_NULL(body);
+
+    return std::make_shared<Ast::WhileLoop>(std::move(condition), std::move(body));
+}
+
+std::shared_ptr<Ast::Expression> Parser::ParseCondition()
+{
+    if (GetCurrentToken().type != TokenType::ParenthesisOpen)
+        return RaiseError<Ast::Expression>("Expected '(' in condition, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> condition = ParseExpression();
+    RETURN_IF_NULL(condition);
+
+    if (GetCurrentToken().type != TokenType::ParenthesisClose)
+        return RaiseError<Ast::Expression>("Expected ')' in condition, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    return condition;
 }
 
 std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
@@ -476,7 +497,9 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result;
 
-            result->GetBody().push_back(std::make_shared<Ast::FunctionReturn>(ParseExpression()));
+            auto expression = ParseExpression();
+            RETURN_IF_NULL(expression);
+            result->GetBody().push_back(std::make_shared<Ast::FunctionReturn>(std::move(expression)));
 
             if (GetCurrentToken().type != TokenType::Semicolon)
                 return RaiseError<Ast::Scope>("Expected ';' after Expression in single-statement function, got {}", GetCurrentToken().type);
@@ -510,6 +533,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
         }
 
         default:
+        {
             if (!isFunctionLevel)
                 return RaiseError<Ast::Scope>("Expected '{' or '=>' for scope, got {}", GetCurrentToken().type);
 
@@ -517,10 +541,13 @@ std::shared_ptr<Ast::Scope> Parser::ParseScope(const bool isFunctionLevel)
             // ReSharper disable once CppDFALocalValueEscapesFunction
             Ast::currentScope = result;
 
-            result->GetBody().push_back(ParseFunctionLevelStatement());
+            auto statement = ParseFunctionLevelStatement();
+            RETURN_IF_NULL(statement);
+            result->GetBody().push_back(std::move(statement));
 
             Ast::currentScope = result->GetParentScope();
             return result;
+        }
     }
 }
 
@@ -540,8 +567,12 @@ std::shared_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::shared_ptr
     switch (currentToken.type)
     {
         case TokenType::Equals:
+        {
             SkipTokens(1);
-            return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair), ParseExpression());
+            auto expression = ParseExpression();
+            RETURN_IF_NULL(expression);
+            return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair), expression);
+        }
 
         case TokenType::Semicolon:
             return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair));
@@ -568,7 +599,11 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunction(std::shared_ptr<Ast::TypeI
 
         case TokenType::CurlyBraceOpen:
         case TokenType::EqualsGreaterThan:
-            return std::make_shared<Ast::FunctionDefinition>(std::move(prototype), ParseFunctionLevelScope());
+        {
+            auto body = ParseFunctionLevelScope();
+            RETURN_IF_NULL(body);
+            return std::make_shared<Ast::FunctionDefinition>(std::move(prototype), std::move(body));
+        }
 
         default:
             return RaiseError("Expected either ';' or '{' in function declaration, got {}", GetCurrentToken().type);
@@ -617,8 +652,7 @@ std::shared_ptr<Ast::FunctionPrototype> Parser::ParseFunctionPrototype()
 std::shared_ptr<Ast::FunctionDefinition> Parser::ParseFunctionDefinition()
 {
     std::shared_ptr<Ast::FunctionPrototype> prototype = ParseFunctionPrototype();
-    if (!prototype)
-        return nullptr;
+    RETURN_IF_NULL(prototype);
 
     const Token& openBrace = GetCurrentToken();
     if (openBrace.type != TokenType::CurlyBraceOpen)

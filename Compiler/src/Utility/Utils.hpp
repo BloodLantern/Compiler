@@ -98,6 +98,8 @@
 
 #define CHAR_FORMAT_ARGUMENT(formatArgumentIndex) "{" #formatArgumentIndex ":?} (0x{" #formatArgumentIndex ":X})"
 
+#define RETURN_IF_NULL(value) if (!value) return nullptr
+
 #define ANSI_ESC "\x1B"
 #define ANSI_OSC ANSI_ESC "]"
 #define ANSI_OSC8 ANSI_OSC "8"
