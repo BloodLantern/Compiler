@@ -6,10 +6,7 @@ int Sub(int a, int b) => a - b;
 
 int Func(int a, int b)
 {
-    if (a > b)
-        return Sub(a, b);
-    else
-        return Sub(b, a);
+    return a > b ? Sub(a, b) : Sub(b, a);
 }
 
 int main()
@@ -21,7 +18,7 @@ int main()
     putchar('o');
     putchar('!');
     putchar(10);
-    exit(-1);
+
     return 0;
 }
 

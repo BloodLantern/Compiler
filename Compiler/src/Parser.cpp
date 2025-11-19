@@ -11,9 +11,6 @@ std::shared_ptr<Ast::Expression> Parser::ParseExpression()
     if (!lhs)
         return nullptr;
 
-    if (GetCurrentToken().type == TokenType::QuestionMark)
-        return ParseTernary(lhs);
-
     if (TokenIsOperator(GetCurrentToken().type))
         return ParseOperationRhs(-1, std::move(lhs));
 
