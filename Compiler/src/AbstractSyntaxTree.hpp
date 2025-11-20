@@ -309,6 +309,22 @@ namespace Ast
         std::shared_ptr<Expression> m_Condition;
         std::shared_ptr<Scope> m_Body;
     };
+
+    class DoWhileLoop : public Expression
+    {
+    public:
+        explicit DoWhileLoop(std::shared_ptr<Scope> body, std::shared_ptr<Expression> condition);
+
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
+
+        GETTER_M(const std::shared_ptr<Scope>&, Body)
+        GETTER_M(const std::shared_ptr<Expression>&, Condition)
+
+    private:
+        std::shared_ptr<Scope> m_Body;
+        std::shared_ptr<Expression> m_Condition;
+    };
 }
 
 // Start of AST.inl

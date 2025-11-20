@@ -83,6 +83,10 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
                     case Keyword::While:
                         return ParseWhileLoop();
 
+                    case Keyword::Do:
+                        result = ParseDoWhileLoop();
+                        break;
+
                     default:
                         result = RaiseError("Invalid keyword in statement: {}", keyword);
                         SkipTokens(1);
@@ -462,6 +466,26 @@ std::shared_ptr<Ast::WhileLoop> Parser::ParseWhileLoop()
     RETURN_IF_NULL(body);
 
     return std::make_shared<Ast::WhileLoop>(std::move(condition), std::move(body));
+}
+
+std::shared_ptr<Ast::DoWhileLoop> Parser::ParseDoWhileLoop()
+{
+    assert(GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::Do);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Scope> body = ParseFunctionLevelScope();
+    RETURN_IF_NULL(body);
+
+    if (GetCurrentToken().type != TokenType::Keyword || std::get<Keyword>(GetCurrentToken().value.value()) != Keyword::While)
+        return RaiseError<Ast::DoWhileLoop>("Expected 'while' keyword in DoWhile statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    RETURN_IF_NULL(condition);
+
+    return std::make_shared<Ast::DoWhileLoop>(std::move(body), std::move(condition));
 }
 
 std::shared_ptr<Ast::Expression> Parser::ParseCondition()

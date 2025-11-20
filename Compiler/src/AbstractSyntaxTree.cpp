@@ -432,6 +432,38 @@ llvm::Value* WhileLoop::GenerateCode() const
     return mergeBlock;
 }
 
+DoWhileLoop::DoWhileLoop(std::shared_ptr<Scope> body, std::shared_ptr<Expression> condition)
+    : m_Body{std::move(body)}
+    , m_Condition{std::move(condition)}
+{
+}
+
+llvm::Value* DoWhileLoop::GenerateCode() const
+{
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock* loopBlock = llvm::BasicBlock::Create(*llvmContext, "DoWhileLoopBody", function);
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "DoWhileLoopEnd");
+
+    builder->CreateBr(loopBlock);
+
+    builder->SetInsertPoint(loopBlock);
+
+    const llvm::Value* loopContents = m_Body->GenerateCode();
+    RETURN_IF_NULL(loopContents);
+
+    llvm::Value* condition = m_Condition->GenerateCode();
+    RETURN_IF_NULL(condition);
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "DoWhileLoopConditionResult");
+
+    builder->CreateCondBr(condition, loopBlock, mergeBlock);
+
+    function->insert(function->end(), mergeBlock);
+    builder->SetInsertPoint(mergeBlock);
+
+    return mergeBlock;
+}
+
 llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)
 {
     auto& entryBlock = function->getEntryBlock();

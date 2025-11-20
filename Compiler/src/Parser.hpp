@@ -47,6 +47,7 @@ private:
     std::shared_ptr<Ast::IfElse> ParseIfElse();
     std::shared_ptr<Ast::Ternary> ParseTernary(std::shared_ptr<Ast::Expression> condition);
     std::shared_ptr<Ast::WhileLoop> ParseWhileLoop();
+    std::shared_ptr<Ast::DoWhileLoop> ParseDoWhileLoop();
     std::shared_ptr<Ast::Expression> ParseCondition();
 
     std::shared_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);

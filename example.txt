@@ -11,13 +11,7 @@ int Func(int a, int b)
 
 int Func2(int param)
 {
-    if (param == 0)
-        putchar('0');
-    else
-    {
-        putchar('!');
-        putchar('0');
-    }
+    putchar(48 + param); // '0' + param
 
     return 0;
 }
@@ -26,13 +20,23 @@ int main()
 {
     int i;
     int j = 10;
-    i = j;
 
+    i = j;
     while (i > 0)
     {
         i = i - 1;
         Func2(i);
     }
+    putchar(10);
+
+    i = j;
+    do
+    {
+        i = i - 1;
+        Func2(i);
+    }
+    while (i > 0);
+    putchar(10);
 
     putchar('H');
     putchar('e');
