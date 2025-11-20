@@ -87,6 +87,9 @@ std::shared_ptr<Ast::Statement> Parser::ParseFunctionLevelStatement()
                         result = ParseDoWhileLoop();
                         break;
 
+                    case Keyword::For:
+                        return ParseForLoop();
+
                     default:
                         result = RaiseError("Invalid keyword in statement: {}", keyword);
                         SkipTokens(1);
@@ -416,7 +419,7 @@ std::shared_ptr<Ast::IfElse> Parser::ParseIfElse()
 
     SkipTokens(1);
 
-    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    std::shared_ptr<Ast::Expression> condition = ParseParenthesizedCondition();
     RETURN_IF_NULL(condition);
 
     std::shared_ptr<Ast::Scope> ifBody = ParseFunctionLevelScope();
@@ -459,7 +462,7 @@ std::shared_ptr<Ast::WhileLoop> Parser::ParseWhileLoop()
 
     SkipTokens(1);
 
-    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    std::shared_ptr<Ast::Expression> condition = ParseParenthesizedCondition();
     RETURN_IF_NULL(condition);
 
     std::shared_ptr<Ast::Scope> body = ParseFunctionLevelScope();
@@ -482,13 +485,66 @@ std::shared_ptr<Ast::DoWhileLoop> Parser::ParseDoWhileLoop()
 
     SkipTokens(1);
 
-    std::shared_ptr<Ast::Expression> condition = ParseCondition();
+    std::shared_ptr<Ast::Expression> condition = ParseParenthesizedCondition();
     RETURN_IF_NULL(condition);
 
     return std::make_shared<Ast::DoWhileLoop>(std::move(body), std::move(condition));
 }
 
-std::shared_ptr<Ast::Expression> Parser::ParseCondition()
+std::shared_ptr<Ast::ForLoop> Parser::ParseForLoop()
+{
+    assert(GetCurrentToken().type == TokenType::Keyword && std::get<Keyword>(GetCurrentToken().value.value()) == Keyword::For);
+
+    SkipTokens(1);
+
+    if (GetCurrentToken().type != TokenType::ParenthesisOpen)
+        return RaiseError<Ast::ForLoop>("Expected '(' in for loop statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> initialization;
+    if (GetCurrentToken().type != TokenType::Semicolon)
+    {
+        initialization = ParseExpression();
+        RETURN_IF_NULL(initialization);
+    }
+
+    if (GetCurrentToken().type != TokenType::Semicolon)
+        return RaiseError<Ast::ForLoop>("Expected ';' in for loop statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> condition;
+    if (GetCurrentToken().type != TokenType::Semicolon)
+    {
+        condition = ParseExpression();
+        RETURN_IF_NULL(condition);
+    }
+
+    if (GetCurrentToken().type != TokenType::Semicolon)
+        return RaiseError<Ast::ForLoop>("Expected ';' in for loop statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Expression> expression;
+    if (GetCurrentToken().type != TokenType::Semicolon)
+    {
+        expression = ParseExpression();
+        RETURN_IF_NULL(expression);
+    }
+
+    if (GetCurrentToken().type != TokenType::ParenthesisClose)
+        return RaiseError<Ast::ForLoop>("Expected ')' in for loop statement, got {}", GetCurrentToken().type);
+
+    SkipTokens(1);
+
+    std::shared_ptr<Ast::Scope> body = ParseFunctionLevelScope();
+    RETURN_IF_NULL(body);
+
+    return std::make_shared<Ast::ForLoop>(std::move(initialization), std::move(condition), std::move(expression), std::move(body));
+}
+
+std::shared_ptr<Ast::Expression> Parser::ParseParenthesizedCondition()
 {
     if (GetCurrentToken().type != TokenType::ParenthesisOpen)
         return RaiseError<Ast::Expression>("Expected '(' in condition, got {}", GetCurrentToken().type);

@@ -146,7 +146,7 @@ namespace Ast
         std::string m_Value;
     };
 
-    class VariableDeclaration : public Expression
+    class VariableDeclaration : public Statement
     {
     public:
         explicit VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typeName);
@@ -294,7 +294,7 @@ namespace Ast
         std::shared_ptr<Expression> m_TrueResult, m_FalseResult;
     };
 
-    class WhileLoop : public Expression
+    class WhileLoop : public Statement
     {
     public:
         explicit WhileLoop(std::shared_ptr<Expression> condition, std::shared_ptr<Scope> body);
@@ -310,7 +310,7 @@ namespace Ast
         std::shared_ptr<Scope> m_Body;
     };
 
-    class DoWhileLoop : public Expression
+    class DoWhileLoop : public Statement
     {
     public:
         explicit DoWhileLoop(std::shared_ptr<Scope> body, std::shared_ptr<Expression> condition);
@@ -324,6 +324,26 @@ namespace Ast
     private:
         std::shared_ptr<Scope> m_Body;
         std::shared_ptr<Expression> m_Condition;
+    };
+
+    class ForLoop : public Statement
+    {
+    public:
+        explicit ForLoop(std::shared_ptr<Expression> initialization, std::shared_ptr<Expression> condition, std::shared_ptr<Expression> expression, std::shared_ptr<Scope> body);
+
+        ATTRIBUTE_NODISCARD
+        llvm::Value* GenerateCode() const override;
+
+        GETTER_M(const std::shared_ptr<Expression>&, Initialization)
+        GETTER_M(const std::shared_ptr<Expression>&, Condition)
+        GETTER_M(const std::shared_ptr<Expression>&, Expression)
+        GETTER_M(const std::shared_ptr<Scope>&, Body)
+
+    private:
+        std::shared_ptr<Expression> m_Initialization;
+        std::shared_ptr<Expression> m_Condition;
+        std::shared_ptr<Expression> m_Expression;
+        std::shared_ptr<Scope> m_Body;
     };
 }
 

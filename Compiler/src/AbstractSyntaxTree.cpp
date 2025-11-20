@@ -4,6 +4,70 @@
 
 using namespace Ast;
 
+llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)
+{
+    auto& entryBlock = function->getEntryBlock();
+    llvm::IRBuilder temporaryBuilder{&entryBlock, entryBlock.begin()};
+    return temporaryBuilder.CreateAlloca(llvm::Type::getInt32Ty(*llvmContext), nullptr, variableName);
+}
+
+TypeName::TypeName(std::variant<std::string, BuiltinType> type)
+    : m_Type{std::move(type)}
+{
+}
+
+llvm::Type* TypeName::GetLlvmType() const
+{
+    if (const std::string* value = std::get_if<std::string>(&m_Type))
+        return nullptr; // TODO - Struct types
+
+    switch (std::get<BuiltinType>(m_Type))
+    {
+        case BuiltinType::Void:
+            return llvm::Type::getVoidTy(*llvmContext);
+
+        case BuiltinType::Bool:
+            return llvm::Type::getInt1Ty(*llvmContext);
+
+        case BuiltinType::Char:
+        case BuiltinType::SByte:
+        case BuiltinType::Byte:
+            return llvm::Type::getInt8Ty(*llvmContext);
+
+        case BuiltinType::Short:
+        case BuiltinType::UShort:
+            return llvm::Type::getInt16Ty(*llvmContext);
+
+        case BuiltinType::Int:
+        case BuiltinType::UInt:
+            return llvm::Type::getInt32Ty(*llvmContext);
+
+        case BuiltinType::Long:
+        case BuiltinType::ULong:
+            return llvm::Type::getInt64Ty(*llvmContext);
+
+        case BuiltinType::String:
+            return llvm::PointerType::getUnqual(*llvmContext);
+    }
+
+    std::println(std::cerr,"Invalid BuiltinType value");
+    Utils::Exit(ErrorCodes::FatalError);
+}
+
+std::string_view TypeName::GetType() const
+{
+    if (const std::string* value = std::get_if<std::string>(&m_Type))
+        return *value;
+
+    return KeywordStrings.at(BuiltinTypeToKeyword(std::get<BuiltinType>(m_Type)));
+}
+
+TypeIdentifierPair::TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name)
+    : m_Type{std::move(type)}
+, m_Name{std::move(name)}
+{
+}
+
 Statement::Statement()
     : m_ParentScope{currentScope}
 {
@@ -211,6 +275,27 @@ llvm::Value* FunctionCall::GenerateCode() const
     }
 
     return builder->CreateCall(calleeFunction, arguments, "FunctionCallResult");
+}
+
+FunctionPrototype::FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
+    : m_TypeNamePair{std::move(typeNamePair)}
+, m_Parameters{std::move(parameters)}
+{
+}
+
+llvm::Function* FunctionPrototype::GenerateCode() const
+{
+    // Make the function type
+    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*llvmContext)};
+    llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*llvmContext), parameters, false);
+
+    llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());
+
+    // Set names for all arguments
+    for (size_t i = 0; i < function->arg_size(); i++)
+        (function->arg_begin() + i)->setName(m_Parameters[i]->GetName());
+
+    return function;
 }
 
 FunctionDefinition::FunctionDefinition(std::shared_ptr<FunctionPrototype> prototype, std::shared_ptr<Scope> body)
@@ -464,87 +549,59 @@ llvm::Value* DoWhileLoop::GenerateCode() const
     return mergeBlock;
 }
 
-llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)
+ForLoop::ForLoop(
+    std::shared_ptr<Expression> initialization,
+    std::shared_ptr<Expression> condition,
+    std::shared_ptr<Expression> expression,
+    std::shared_ptr<Scope> body
+)
+    : m_Initialization{std::move(initialization)}
+    , m_Condition{std::move(condition)}
+    , m_Expression{std::move(expression)}
+    , m_Body{std::move(body)}
 {
-    auto& entryBlock = function->getEntryBlock();
-    llvm::IRBuilder temporaryBuilder{&entryBlock, entryBlock.begin()};
-    return temporaryBuilder.CreateAlloca(llvm::Type::getInt32Ty(*llvmContext), nullptr, variableName);
 }
 
-TypeName::TypeName(std::variant<std::string, BuiltinType> type)
-    : m_Type{std::move(type)}
+llvm::Value* ForLoop::GenerateCode() const
 {
-}
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
 
-llvm::Type* TypeName::GetLlvmType() const
-{
-    if (const std::string* value = std::get_if<std::string>(&m_Type))
-        return nullptr; // TODO - Struct types
-
-    switch (std::get<BuiltinType>(m_Type))
+    if (m_Initialization)
     {
-        case BuiltinType::Void:
-            return llvm::Type::getVoidTy(*llvmContext);
-
-        case BuiltinType::Bool:
-            return llvm::Type::getInt1Ty(*llvmContext);
-
-        case BuiltinType::Char:
-        case BuiltinType::SByte:
-        case BuiltinType::Byte:
-            return llvm::Type::getInt8Ty(*llvmContext);
-
-        case BuiltinType::Short:
-        case BuiltinType::UShort:
-            return llvm::Type::getInt16Ty(*llvmContext);
-
-        case BuiltinType::Int:
-        case BuiltinType::UInt:
-            return llvm::Type::getInt32Ty(*llvmContext);
-
-        case BuiltinType::Long:
-        case BuiltinType::ULong:
-            return llvm::Type::getInt64Ty(*llvmContext);
-
-        case BuiltinType::String:
-            return llvm::PointerType::getUnqual(*llvmContext);
+        const llvm::Value* initializationContents = m_Initialization->GenerateCode();
+        RETURN_IF_NULL(initializationContents);
     }
 
-    std::println(std::cerr,"Invalid BuiltinType value");
-    Utils::Exit(ErrorCodes::FatalError);
-}
+    llvm::BasicBlock* loopConditionBlock = llvm::BasicBlock::Create(*llvmContext, "ForLoopCondition", function);
+    llvm::BasicBlock* loopBlock = llvm::BasicBlock::Create(*llvmContext, "ForLoopBody");
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*llvmContext, "ForLoopEnd");
 
-std::string_view TypeName::GetType() const
-{
-    if (const std::string* value = std::get_if<std::string>(&m_Type))
-        return *value;
+    builder->CreateBr(loopConditionBlock);
 
-    return KeywordStrings.at(BuiltinTypeToKeyword(std::get<BuiltinType>(m_Type)));
-}
+    builder->SetInsertPoint(loopConditionBlock);
 
-TypeIdentifierPair::TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name)
-    : m_Type{std::move(type)}
-    , m_Name{std::move(name)}
-{
-}
+    llvm::Value* condition = m_Condition->GenerateCode();
+    RETURN_IF_NULL(condition);
+    condition = builder->CreateICmpNE(condition, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(condition), 0}), "ForLoopConditionResult");
 
-FunctionPrototype::FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
-    : m_TypeNamePair{std::move(typeNamePair)}
-    , m_Parameters{std::move(parameters)}
-{
-}
+    builder->CreateCondBr(condition, loopBlock, mergeBlock);
 
-llvm::Function* FunctionPrototype::GenerateCode() const
-{
-    // Make the function type
-    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*llvmContext)};
-    llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*llvmContext), parameters, false);
+    function->insert(function->end(), loopBlock);
+    builder->SetInsertPoint(loopBlock);
 
-    llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());
+    const llvm::Value* loopContents = m_Body->GenerateCode();
+    RETURN_IF_NULL(loopContents);
 
-    // Set names for all arguments
-    for (size_t i = 0; i < function->arg_size(); i++)
-        (function->arg_begin() + i)->setName(m_Parameters[i]->GetName());
+    if (m_Expression)
+    {
+        const llvm::Value* loopEndExpressionContents = m_Expression->GenerateCode();
+        RETURN_IF_NULL(loopEndExpressionContents);
+    }
 
-    return function;
+    builder->CreateBr(loopConditionBlock);
+
+    function->insert(function->end(), mergeBlock);
+    builder->SetInsertPoint(mergeBlock);
+
+    return mergeBlock;
 }

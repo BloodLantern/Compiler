@@ -48,7 +48,8 @@ private:
     std::shared_ptr<Ast::Ternary> ParseTernary(std::shared_ptr<Ast::Expression> condition);
     std::shared_ptr<Ast::WhileLoop> ParseWhileLoop();
     std::shared_ptr<Ast::DoWhileLoop> ParseDoWhileLoop();
-    std::shared_ptr<Ast::Expression> ParseCondition();
+    std::shared_ptr<Ast::ForLoop> ParseForLoop();
+    std::shared_ptr<Ast::Expression> ParseParenthesizedCondition();
 
     std::shared_ptr<Ast::Scope> ParseScope(bool isFunctionLevel);
     /// @brief Parses a top-level scope such as namespaces or type definitions
