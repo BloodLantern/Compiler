@@ -58,7 +58,7 @@ private:
     /// or curly braces for multi-statement scopes.
     std::shared_ptr<Ast::Scope> ParseFunctionLevelScope();
 
-    std::shared_ptr<Ast::Statement> ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair);
+    std::shared_ptr<Ast::VariableDeclaration> ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair);
     std::shared_ptr<Ast::Statement> ParseFunction(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair);
     void ParseFunctionParameters(std::vector<Ast::FunctionPrototype::Parameter>& output);
     std::shared_ptr<Ast::FunctionPrototype> ParseFunctionPrototype();

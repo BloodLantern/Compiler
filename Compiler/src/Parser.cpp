@@ -481,7 +481,7 @@ std::shared_ptr<Ast::DoWhileLoop> Parser::ParseDoWhileLoop()
     RETURN_IF_NULL(body);
 
     if (GetCurrentToken().type != TokenType::Keyword || std::get<Keyword>(GetCurrentToken().value.value()) != Keyword::While)
-        return RaiseError<Ast::DoWhileLoop>("Expected 'while' keyword in DoWhile statement, got {}", GetCurrentToken().type);
+        return RaiseError<Ast::DoWhileLoop>("Expected 'while' keyword in do...while statement, got {}", GetCurrentToken().type);
 
     SkipTokens(1);
 
@@ -498,19 +498,29 @@ std::shared_ptr<Ast::ForLoop> Parser::ParseForLoop()
     SkipTokens(1);
 
     if (GetCurrentToken().type != TokenType::ParenthesisOpen)
-        return RaiseError<Ast::ForLoop>("Expected '(' in for loop statement, got {}", GetCurrentToken().type);
+        return RaiseError<Ast::ForLoop>("Expected '(' in for statement, got {}", GetCurrentToken().type);
 
     SkipTokens(1);
 
-    std::shared_ptr<Ast::Expression> initialization;
+    Ast::ForLoop::InitializationType initialization;
     if (GetCurrentToken().type != TokenType::Semicolon)
     {
-        initialization = ParseExpression();
-        RETURN_IF_NULL(initialization);
+        if (GetCurrentToken().IsTypeTokenOrIdentifier() && PeekToken(1).type == TokenType::Identifier)
+        {
+            auto result = ParseVariableDeclaration(ParseTypeIdentifierPair());
+            RETURN_IF_NULL(result);
+            initialization = std::move(result);
+        }
+        else
+        {
+            auto result = ParseExpression();
+            RETURN_IF_NULL(result);
+            initialization = std::move(result);
+        }
     }
 
     if (GetCurrentToken().type != TokenType::Semicolon)
-        return RaiseError<Ast::ForLoop>("Expected ';' in for loop statement, got {}", GetCurrentToken().type);
+        return RaiseError<Ast::ForLoop>("Expected ';' in for statement, got {}", GetCurrentToken().type);
 
     SkipTokens(1);
 
@@ -522,7 +532,7 @@ std::shared_ptr<Ast::ForLoop> Parser::ParseForLoop()
     }
 
     if (GetCurrentToken().type != TokenType::Semicolon)
-        return RaiseError<Ast::ForLoop>("Expected ';' in for loop statement, got {}", GetCurrentToken().type);
+        return RaiseError<Ast::ForLoop>("Expected ';' in for statement, got {}", GetCurrentToken().type);
 
     SkipTokens(1);
 
@@ -534,7 +544,7 @@ std::shared_ptr<Ast::ForLoop> Parser::ParseForLoop()
     }
 
     if (GetCurrentToken().type != TokenType::ParenthesisClose)
-        return RaiseError<Ast::ForLoop>("Expected ')' in for loop statement, got {}", GetCurrentToken().type);
+        return RaiseError<Ast::ForLoop>("Expected ')' in for statement, got {}", GetCurrentToken().type);
 
     SkipTokens(1);
 
@@ -641,7 +651,7 @@ std::shared_ptr<Ast::Scope> Parser::ParseFunctionLevelScope()
     return ParseScope(true);
 }
 
-std::shared_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair)
+std::shared_ptr<Ast::VariableDeclaration> Parser::ParseVariableDeclaration(std::shared_ptr<Ast::TypeIdentifierPair> typeNamePair)
 {
     const Token& currentToken = GetCurrentToken();
     switch (currentToken.type)
@@ -658,7 +668,7 @@ std::shared_ptr<Ast::Statement> Parser::ParseVariableDeclaration(std::shared_ptr
             return std::make_shared<Ast::VariableDeclaration>(std::move(typeNamePair));
 
         default:
-            return RaiseError("Expected either '=' or ';' in variable declaration, got {}", currentToken.type);
+            return RaiseError<Ast::VariableDeclaration>("Expected either '=' or ';' in variable declaration, got {}", currentToken.type);
     }
 }
 

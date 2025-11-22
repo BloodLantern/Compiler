@@ -329,18 +329,21 @@ namespace Ast
     class ForLoop : public Statement
     {
     public:
-        explicit ForLoop(std::shared_ptr<Expression> initialization, std::shared_ptr<Expression> condition, std::shared_ptr<Expression> expression, std::shared_ptr<Scope> body);
+        /// @brief The initialization statement can either be a @c VariableDeclaration or an @c Expression.
+        using InitializationType = std::variant<std::monostate, std::shared_ptr<VariableDeclaration>, std::shared_ptr<Expression>>;
+
+        explicit ForLoop(InitializationType initialization, std::shared_ptr<Expression> condition, std::shared_ptr<Expression> expression, std::shared_ptr<Scope> body);
 
         ATTRIBUTE_NODISCARD
         llvm::Value* GenerateCode() const override;
 
-        GETTER_M(const std::shared_ptr<Expression>&, Initialization)
+        GETTER_M(const InitializationType&, Initialization)
         GETTER_M(const std::shared_ptr<Expression>&, Condition)
         GETTER_M(const std::shared_ptr<Expression>&, Expression)
         GETTER_M(const std::shared_ptr<Scope>&, Body)
 
     private:
-        std::shared_ptr<Expression> m_Initialization;
+        InitializationType m_Initialization;
         std::shared_ptr<Expression> m_Condition;
         std::shared_ptr<Expression> m_Expression;
         std::shared_ptr<Scope> m_Body;

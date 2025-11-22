@@ -550,7 +550,7 @@ llvm::Value* DoWhileLoop::GenerateCode() const
 }
 
 ForLoop::ForLoop(
-    std::shared_ptr<Expression> initialization,
+    InitializationType initialization,
     std::shared_ptr<Expression> condition,
     std::shared_ptr<Expression> expression,
     std::shared_ptr<Scope> body
@@ -566,9 +566,11 @@ llvm::Value* ForLoop::GenerateCode() const
 {
     llvm::Function* function = builder->GetInsertBlock()->getParent();
 
-    if (m_Initialization)
+    if (!std::holds_alternative<std::monostate>(m_Initialization))
     {
-        const llvm::Value* initializationContents = m_Initialization->GenerateCode();
+        const llvm::Value* initializationContents = std::holds_alternative<std::shared_ptr<VariableDeclaration>>(m_Initialization)
+                                                        ? std::get<std::shared_ptr<VariableDeclaration>>(m_Initialization)->GenerateCode()
+                                                        : std::get<std::shared_ptr<Expression>>(m_Initialization)->GenerateCode();
         RETURN_IF_NULL(initializationContents);
     }
 
