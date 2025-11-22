@@ -41,7 +41,7 @@ private:
     std::shared_ptr<Ast::Expression> ParseIdentifier();
     std::shared_ptr<Ast::Expression> ParseParentheses();
     std::shared_ptr<Ast::Expression> ParseLiteral();
-    std::shared_ptr<Ast::Expression> ParseOperationRhs(s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs);
+    std::shared_ptr<Ast::Expression> ParseOperationRhs(i32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs);
     std::shared_ptr<Ast::TypeName> ParseType();
     std::shared_ptr<Ast::TypeIdentifierPair> ParseTypeIdentifierPair();
     std::shared_ptr<Ast::IfElse> ParseIfElse();

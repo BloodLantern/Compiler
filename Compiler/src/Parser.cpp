@@ -308,7 +308,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseLiteral()
     switch (token.type)
     {
         case TokenType::LiteralInteger:
-            result = std::make_shared<Ast::LiteralNumber<s32>>(std::get<s32>(token.value.value()));
+            result = std::make_shared<Ast::LiteralNumber<i32>>(std::get<i32>(token.value.value()));
             break;
 
         case TokenType::LiteralCharacter:
@@ -327,7 +327,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseLiteral()
     return result;
 }
 
-std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs)
+std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const i32 expressionPrecedence, std::shared_ptr<Ast::Expression> lhs)
 {
     assert(TokenTypeIsOperator(GetCurrentToken().type) && "ParseOperationRhs called on non-operator token");
 
@@ -345,7 +345,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
         if (op == Operator::Ternary)
             return ParseTernary(std::move(lhs));
 
-        const s32 opPrecedence = OperatorGetPrecedence(op);
+        const i32 opPrecedence = OperatorGetPrecedence(op);
 
         if (opPrecedence < expressionPrecedence)
             return lhs;
@@ -357,7 +357,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
             return nullptr;
 
         const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator(nullptr);
-        const s32 nextOperatorPrecedence = nextOptionalOperator.has_value() ? OperatorGetPrecedence(nextOptionalOperator.value()) : -1;
+        const i32 nextOperatorPrecedence = nextOptionalOperator.has_value() ? OperatorGetPrecedence(nextOptionalOperator.value()) : -1;
 
         if (opPrecedence < nextOperatorPrecedence)
         {
