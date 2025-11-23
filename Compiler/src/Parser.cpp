@@ -352,8 +352,11 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const i32 expressionP
 
         SkipTokens(1); // Skip the operator token
 
+        if (!OperatorHasRightOperand(op))
+            return std::make_shared<Ast::Operation>(op, std::move(lhs), nullptr);
+
         auto rhs = TokenTypeIsOperator(GetCurrentToken().type) ? ParseOperationRhs(opPrecedence + 1, nullptr) : ParsePrimary();
-        if (!rhs && OperatorHasRightOperand(op))
+        if (!rhs)
             return nullptr;
 
         const std::optional<Operator> nextOptionalOperator = ParseCurrentOperator(nullptr);

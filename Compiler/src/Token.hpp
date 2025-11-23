@@ -40,6 +40,8 @@ enum class TokenType : u8
 
     EqualsGreaterThan,
 
+    DoubleDot,
+
     Plus,
     Minus,
     Star,
@@ -128,6 +130,8 @@ constexpr std::array SimpleTokenList
     std::make_pair("::", TokenType::DoubleColon),
     std::make_pair("->", TokenType::MinusGreaterThan),
     std::make_pair("=>", TokenType::EqualsGreaterThan),
+
+    std::make_pair("..", TokenType::DoubleDot),
 
     std::make_pair(".", TokenType::Dot),
 

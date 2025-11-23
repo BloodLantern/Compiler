@@ -187,23 +187,27 @@ Operation::Operation(const Operator operatorType, std::shared_ptr<Expression> lh
 }
 
 #define OPERATION_GENERATE_CODE_CHECK_OPERAND(operand, operandResult, check) \
-    if (check) \
+    do \
     { \
-        operandResult = operand->GenerateCode(); \
-        if (!operandResult) \
-            return nullptr; \
+        if (check) \
+        { \
+            operandResult = operand->GenerateCode(); \
+            RETURN_IF_NULL(operandResult); \
+        } \
+        else \
+        { \
+            operandResult = nullptr; \
+        } \
     } \
-    else \
-    { \
-        operandResult = nullptr; \
-    }
+    while (false)
 
 llvm::Value* Operation::GenerateCode() const
 {
-    llvm::Value* lhs;
-    OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Lhs, lhs, OperatorHasLeftOperand(m_OperatorType))
+    llvm::Value* lhs = nullptr;
+    if (m_OperatorType != Operator::Assignment)
+        OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Lhs, lhs, OperatorHasLeftOperand(m_OperatorType));
     llvm::Value* rhs;
-    OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Rhs, rhs, OperatorHasRightOperand(m_OperatorType))
+    OPERATION_GENERATE_CODE_CHECK_OPERAND(m_Rhs, rhs, OperatorHasRightOperand(m_OperatorType));
 
     const std::string_view operatorName = magic_enum::enum_name(m_OperatorType);
     static constexpr std::string_view NameSuffix = "Result";
@@ -239,16 +243,36 @@ llvm::Value* Operation::GenerateCode() const
 
         case Operator::Negation:        return builder->CreateNeg(rhs, name);
 
-        case Operator::PreIncrement:    return builder->CreateAdd(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
-        case Operator::PreDecrement:    return builder->CreateSub(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name);
+        case Operator::PreIncrement:
+            return GenerateAssignment(*m_Rhs, builder->CreateAdd(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name));
+        case Operator::PreDecrement:
+            return GenerateAssignment(*m_Rhs, builder->CreateSub(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name));
+        case Operator::PostIncrement:
+            GenerateAssignment(*m_Lhs, builder->CreateAdd(lhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(lhs), 1}), name));
+            return lhs;
+        case Operator::PostDecrement:
+            GenerateAssignment(*m_Lhs, builder->CreateSub(lhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(lhs), 1}), name));
+            return lhs;
 
-        case Operator::Assignment:      return builder->CreateStore(rhs, LookupIdentifier(std::dynamic_pointer_cast<VariableUsage>(m_Lhs)->GetName())); // FIXME - This generates useless code and assumes that lhs is a VariableUsage
+        case Operator::Assignment:      return GenerateAssignment(*m_Lhs, rhs);
 
         default: return RaiseError("Invalid binary operator: {}", m_OperatorType);
     }
 }
 
 #undef OPERATION_GENERATE_CODE_CHECK_OPERAND
+
+llvm::Value* Operation::GenerateAssignment(const Expression& variable, llvm::Value* value) const
+{
+    const auto variableUsage = dynamic_cast<const VariableUsage*>(&variable);
+    RETURN_IF_NULL(variableUsage);
+    return GenerateAssignment(*variableUsage, value);
+}
+
+llvm::Value* Operation::GenerateAssignment(const VariableUsage& variable, llvm::Value* value) const
+{
+    return builder->CreateStore(value, LookupIdentifier(variable.GetName()));
+}
 
 FunctionCall::FunctionCall(std::string callee, std::vector<std::shared_ptr<Expression>> arguments)
     : m_Callee{std::move(callee)}

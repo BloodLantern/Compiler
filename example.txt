@@ -38,7 +38,7 @@ int main()
     while (i > 0);
     putchar(10);
 
-    for (int k = 0; k < 10; k = k + 1)
+    for (int k = 0; k < 10; k++)
         Func2(k);
     putchar(10);
 

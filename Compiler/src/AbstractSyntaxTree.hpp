@@ -192,6 +192,9 @@ namespace Ast
     private:
         Operator m_OperatorType;
         std::shared_ptr<Expression> m_Lhs, m_Rhs;
+
+        llvm::Value* GenerateAssignment(const Expression& variable, llvm::Value* value) const;
+        llvm::Value* GenerateAssignment(const VariableUsage& variable, llvm::Value* value) const;
     };
 
     class FunctionCall : public Expression
