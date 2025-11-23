@@ -29,7 +29,7 @@ llvm::Type* TypeName::GetLlvmType() const
         case BuiltinType::Bool:
             return llvm::Type::getInt1Ty(*llvmContext);
 
-        case BuiltinType::Char:
+        /*case BuiltinType::Char:
         case BuiltinType::SByte:
         case BuiltinType::Byte:
             return llvm::Type::getInt8Ty(*llvmContext);
@@ -47,7 +47,7 @@ llvm::Type* TypeName::GetLlvmType() const
             return llvm::Type::getInt64Ty(*llvmContext);
 
         case BuiltinType::String:
-            return llvm::PointerType::getUnqual(*llvmContext);
+            return llvm::PointerType::getUnqual(*llvmContext);*/
     }
 
     std::println(std::cerr,"Invalid BuiltinType value");
