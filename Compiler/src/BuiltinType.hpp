@@ -14,7 +14,7 @@
     ULong, \
     String,
 
-enum class BuiltinType : uint8_t
+enum class BuiltinType : u8
 {
     BUILTIN_TYPE_ENUM_CONTENTS
 };

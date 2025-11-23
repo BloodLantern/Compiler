@@ -216,32 +216,44 @@ llvm::Value* Operation::GenerateCode() const
 
     switch (m_OperatorType)
     {
-        case Operator::Addition:        return builder->CreateAdd(lhs, rhs, name);
-        case Operator::Subtraction:     return builder->CreateSub(lhs, rhs, name);
-        case Operator::Multiplication:  return builder->CreateMul(lhs, rhs, name);
-        case Operator::Division:        return builder->CreateSDiv(lhs, rhs, name);
-        case Operator::Modulo:          return builder->CreateSRem(lhs, rhs, name);
+        case Operator::Addition:            return builder->CreateAdd(lhs, rhs, name);
+        case Operator::Subtraction:         return builder->CreateSub(lhs, rhs, name);
+        case Operator::Multiplication:      return builder->CreateMul(lhs, rhs, name);
+        case Operator::Division:            return builder->CreateSDiv(lhs, rhs, name);
+        case Operator::Modulo:              return builder->CreateSRem(lhs, rhs, name);
 
-        case Operator::Equals:          return builder->CreateICmpEQ(lhs, rhs, name);
-        case Operator::NotEquals:       return builder->CreateICmpNE(lhs, rhs, name);
-        case Operator::Greater:         return builder->CreateICmpSGT(lhs, rhs, name);
-        case Operator::GreaterEquals:   return builder->CreateICmpSGE(lhs, rhs, name);
-        case Operator::Less:            return builder->CreateICmpSLT(lhs, rhs, name);
-        case Operator::LessEquals:      return builder->CreateICmpSLE(lhs, rhs, name);
+        case Operator::Equals:              return builder->CreateICmpEQ(lhs, rhs, name);
+        case Operator::NotEquals:           return builder->CreateICmpNE(lhs, rhs, name);
+        case Operator::Greater:             return builder->CreateICmpSGT(lhs, rhs, name);
+        case Operator::GreaterEquals:       return builder->CreateICmpSGE(lhs, rhs, name);
+        case Operator::Less:                return builder->CreateICmpSLT(lhs, rhs, name);
+        case Operator::LessEquals:          return builder->CreateICmpSLE(lhs, rhs, name);
 
-        case Operator::LogicalNot:      return builder->CreateIsNull(rhs, name);
-        case Operator::LogicalAnd:      return builder->CreateLogicalAnd(lhs, rhs, name);
-        case Operator::LogicalOr:       return builder->CreateLogicalOr(lhs, rhs, name);
+        case Operator::LogicalNot:          return builder->CreateIsNull(rhs, name);
+        case Operator::LogicalAnd:          return builder->CreateLogicalAnd(lhs, rhs, name);
+        case Operator::LogicalOr:           return builder->CreateLogicalOr(lhs, rhs, name);
 
-        case Operator::BitshiftLeft:    return builder->CreateShl(lhs, rhs, name);
-        case Operator::BitshiftRight:   return builder->CreateLShr(lhs, rhs, name); // TODO - Check shift type
+        case Operator::BitshiftLeft:        return builder->CreateShl(lhs, rhs, name);
+        case Operator::BitshiftRight:       return builder->CreateLShr(lhs, rhs, name); // TODO - Check shift type
 
-        case Operator::BinaryNot:       return builder->CreateNot(rhs, name);
-        case Operator::BinaryAnd:       return builder->CreateAnd(lhs, rhs, name);
-        case Operator::BinaryOr:        return builder->CreateOr(lhs, rhs, name);
-        case Operator::BinaryXor:       return builder->CreateXor(lhs, rhs, name);
+        case Operator::BinaryNot:           return builder->CreateNot(rhs, name);
+        case Operator::BinaryAnd:           return builder->CreateAnd(lhs, rhs, name);
+        case Operator::BinaryOr:            return builder->CreateOr(lhs, rhs, name);
+        case Operator::BinaryXor:           return builder->CreateXor(lhs, rhs, name);
 
-        case Operator::Negation:        return builder->CreateNeg(rhs, name);
+        case Operator::Negation:            return builder->CreateNeg(rhs, name);
+
+        case Operator::Assignment:          return GenerateAssignment(*m_Lhs, rhs);
+        case Operator::AddEquals:           return GenerateAssignment(*m_Lhs, builder->CreateAdd(lhs, rhs, name));
+        case Operator::SubtractEquals:      return GenerateAssignment(*m_Lhs, builder->CreateSub(lhs, rhs, name));
+        case Operator::MultiplyEquals:      return GenerateAssignment(*m_Lhs, builder->CreateMul(lhs, rhs, name));
+        case Operator::DivideEquals:        return GenerateAssignment(*m_Lhs, builder->CreateSDiv(lhs, rhs, name));
+        case Operator::ModuloEquals:        return GenerateAssignment(*m_Lhs, builder->CreateSRem(lhs, rhs, name));
+        case Operator::BitshiftLeftEquals:  return GenerateAssignment(*m_Lhs, builder->CreateShl(lhs, rhs, name));
+        case Operator::BitshiftRightEquals: return GenerateAssignment(*m_Lhs, builder->CreateLShr(lhs, rhs, name));
+        case Operator::BinaryAndEquals:     return GenerateAssignment(*m_Lhs, builder->CreateAnd(lhs, rhs, name));
+        case Operator::BinaryXorEquals:     return GenerateAssignment(*m_Lhs, builder->CreateXor(lhs, rhs, name));
+        case Operator::BinaryOrEquals:      return GenerateAssignment(*m_Lhs, builder->CreateOr(lhs, rhs, name));
 
         case Operator::PreIncrement:
             return GenerateAssignment(*m_Rhs, builder->CreateAdd(rhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(rhs), 1}), name));
@@ -253,8 +265,6 @@ llvm::Value* Operation::GenerateCode() const
         case Operator::PostDecrement:
             GenerateAssignment(*m_Lhs, builder->CreateSub(lhs, llvm::ConstantInt::get(*llvmContext, llvm::APInt{getTypeBitSize(lhs), 1}), name));
             return lhs;
-
-        case Operator::Assignment:      return GenerateAssignment(*m_Lhs, rhs);
 
         default: return RaiseError("Invalid binary operator: {}", m_OperatorType);
     }
