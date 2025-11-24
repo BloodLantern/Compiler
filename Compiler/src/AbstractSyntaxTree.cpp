@@ -4,19 +4,19 @@
 
 using namespace Ast;
 
-llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, const llvm::StringRef variableName)
+llvm::AllocaInst* Ast::CreateEntryBlockAlloca(llvm::Function* function, llvm::Type* type, const llvm::StringRef variableName)
 {
     auto& entryBlock = function->getEntryBlock();
     llvm::IRBuilder temporaryBuilder{&entryBlock, entryBlock.begin()};
-    return temporaryBuilder.CreateAlloca(llvm::Type::getInt32Ty(*llvmContext), nullptr, variableName);
+    return temporaryBuilder.CreateAlloca(type, nullptr, variableName);
 }
 
-TypeName::TypeName(std::variant<std::string, BuiltinType> type)
+Type::Type(std::variant<std::string, BuiltinType> type)
     : m_Type{std::move(type)}
 {
 }
 
-llvm::Type* TypeName::GetLlvmType() const
+llvm::Type* Type::GetLlvmType() const
 {
     if (const std::string* value = std::get_if<std::string>(&m_Type))
         return nullptr; // TODO - Struct types
@@ -29,32 +29,55 @@ llvm::Type* TypeName::GetLlvmType() const
         case BuiltinType::Bool:
             return llvm::Type::getInt1Ty(*llvmContext);
 
-        /*case BuiltinType::Char:
-        case BuiltinType::SByte:
-        case BuiltinType::Byte:
+        case BuiltinType::C8:
+        case BuiltinType::S8:
+        case BuiltinType::U8:
             return llvm::Type::getInt8Ty(*llvmContext);
 
-        case BuiltinType::Short:
-        case BuiltinType::UShort:
+        case BuiltinType::C16:
+        case BuiltinType::S16:
+        case BuiltinType::U16:
             return llvm::Type::getInt16Ty(*llvmContext);
 
-        case BuiltinType::Int:
-        case BuiltinType::UInt:
+        case BuiltinType::C32:
+        case BuiltinType::S32:
+        case BuiltinType::U32:
             return llvm::Type::getInt32Ty(*llvmContext);
 
-        case BuiltinType::Long:
-        case BuiltinType::ULong:
+        case BuiltinType::S64:
+        case BuiltinType::U64:
             return llvm::Type::getInt64Ty(*llvmContext);
 
-        case BuiltinType::String:
-            return llvm::PointerType::getUnqual(*llvmContext);*/
+        case BuiltinType::S128:
+        case BuiltinType::U128:
+            return llvm::Type::getInt128Ty(*llvmContext);
+
+        case BuiltinType::F16:
+            return llvm::Type::getHalfTy(*llvmContext);
+
+        case BuiltinType::F32:
+            return llvm::Type::getFloatTy(*llvmContext);
+
+        case BuiltinType::F64:
+            return llvm::Type::getDoubleTy(*llvmContext);
+
+        case BuiltinType::F128:
+            return llvm::Type::getFP128Ty(*llvmContext);
+
+        case BuiltinType::Str8:
+        case BuiltinType::Str16:
+        case BuiltinType::Str32:
+            return llvm::PointerType::getUnqual(*llvmContext);
+
+        case BuiltinType::USize:
+            return llvm::Type::getIntNTy(*llvmContext, llvm::PointerType::getUnqual(*llvmContext)->getIntegerBitWidth()); // FIXME - This creates a pointer only to get its bit width
     }
 
     std::println(std::cerr,"Invalid BuiltinType value");
     Utils::Exit(ErrorCodes::FatalError);
 }
 
-std::string_view TypeName::GetType() const
+std::string_view Type::GetTypeName() const
 {
     if (const std::string* value = std::get_if<std::string>(&m_Type))
         return *value;
@@ -62,9 +85,20 @@ std::string_view TypeName::GetType() const
     return KeywordStrings.at(BuiltinTypeToKeyword(std::get<BuiltinType>(m_Type)));
 }
 
-TypeIdentifierPair::TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name)
+BuiltinType Type::GetBuiltinType() const
+{
+    assert(std::holds_alternative<BuiltinType>(m_Type));
+    return std::get<BuiltinType>(m_Type);
+}
+
+bool Type::IsBuiltinType() const
+{
+    return std::holds_alternative<BuiltinType>(m_Type);
+}
+
+TypeIdentifierPair::TypeIdentifierPair(std::shared_ptr<Type> type, std::string name)
     : m_Type{std::move(type)}
-, m_Name{std::move(name)}
+    , m_Name{std::move(name)}
 {
 }
 
@@ -152,7 +186,7 @@ VariableDeclaration::VariableDeclaration(std::shared_ptr<TypeIdentifierPair> typ
 llvm::Value* VariableDeclaration::GenerateCode() const
 {
     const auto variableName = m_TypeName->GetName();
-    const auto allocatedVariable = CreateEntryBlockAlloca(builder->GetInsertBlock()->getParent(), variableName);
+    const auto allocatedVariable = CreateEntryBlockAlloca(builder->GetInsertBlock()->getParent(), m_TypeName->GetType()->GetLlvmType(), variableName);
 
     if (m_InitialValue)
     {
@@ -308,20 +342,26 @@ llvm::Value* FunctionCall::GenerateCode() const
             return nullptr;
     }
 
-    return builder->CreateCall(calleeFunction, arguments, "FunctionCallResult");
+    const c8* resultName = calleeFunction->getReturnType() == llvm::Type::getVoidTy(*llvmContext) ? "" : "FunctionCallResult";
+    return builder->CreateCall(calleeFunction, arguments, resultName);
 }
 
 FunctionPrototype::FunctionPrototype(std::shared_ptr<TypeIdentifierPair> typeNamePair, std::vector<Parameter> parameters)
     : m_TypeNamePair{std::move(typeNamePair)}
-, m_Parameters{std::move(parameters)}
+    , m_Parameters{std::move(parameters)}
 {
 }
 
 llvm::Function* FunctionPrototype::GenerateCode() const
 {
+    // Prepare the parameters
+    std::vector<llvm::Type*> parameters;
+    parameters.reserve(m_Parameters.size());
+    for (const auto& parameter : m_Parameters)
+        parameters.push_back(parameter->GetType()->GetLlvmType());
+
     // Make the function type
-    const std::vector<llvm::Type*> parameters{m_Parameters.size(), llvm::Type::getInt32Ty(*llvmContext)};
-    llvm::FunctionType* functionType = llvm::FunctionType::get(llvm::Type::getInt32Ty(*llvmContext), parameters, false);
+    llvm::FunctionType* functionType = llvm::FunctionType::get(m_TypeNamePair->GetType()->GetLlvmType(), parameters, false);
 
     llvm::Function* function = llvm::Function::Create(functionType, llvm::Function::ExternalLinkage, m_TypeNamePair->GetName(), theModule.get());
 
@@ -360,16 +400,24 @@ llvm::Function* FunctionDefinition::GenerateCode() const
     identifiers.clear();
     for (llvm::Argument& argument : function->args())
     {
-        const auto allocatedVariable = CreateEntryBlockAlloca(function, argument.getName());
+        const auto allocatedVariable = CreateEntryBlockAlloca(function, argument.getType(), argument.getName());
         builder->CreateStore(&argument, allocatedVariable);
         identifiers[argument.getName().data()] = allocatedVariable;
     }
 
-    if (!m_Body->GenerateCode()) // If body code generation failed
+    llvm::Value* lastBodyValue = m_Body->GenerateCode();
+    if (!lastBodyValue) // If body code generation failed
     {
         // Error reading body, remove function
         function->eraseFromParent();
         return nullptr;
+    }
+
+    if (!llvm::isa<llvm::ReturnInst, llvm::BranchInst>(lastBodyValue))
+    {
+        const auto& returnType = m_Prototype->GetTypeNamePair()->GetType();
+        if (returnType->IsBuiltinType() && returnType->GetBuiltinType() == BuiltinType::Void)
+            builder->CreateRetVoid();
     }
 
     // Validate the generated code, checking for consistency

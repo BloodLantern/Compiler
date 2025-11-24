@@ -42,18 +42,42 @@ target_precompile_headers(Compiler PRIVATE
         <optional>
         <unordered_map>
         <variant>
-        <vector>
+        <algorithm>
+        <cassert>
+        <cctype>
+        <cstdio>
+        <cstdlib>
+        <map>
         <memory>
+        <string>
+        <system_error>
+        <utility>
+        <vector>
+
+        # LLVM
+        <llvm/ADT/APFloat.h>
+        <llvm/ADT/STLExtras.h>
+        <llvm/IR/BasicBlock.h>
+        <llvm/IR/Constants.h>
+        <llvm/IR/DerivedTypes.h>
+        <llvm/IR/Function.h>
+        <llvm/IR/IRBuilder.h>
+        <llvm/IR/Instructions.h>
+        <llvm/IR/LLVMContext.h>
+        <llvm/IR/LegacyPassManager.h>
+        <llvm/IR/Module.h>
+        <llvm/IR/Type.h>
+        <llvm/IR/Verifier.h>
+        <llvm/MC/TargetRegistry.h>
+        <llvm/Support/FileSystem.h>
+        <llvm/Support/TargetSelect.h>
+        <llvm/Support/raw_ostream.h>
+        <llvm/Target/TargetMachine.h>
+        <llvm/Target/TargetOptions.h>
+        <llvm/TargetParser/Host.h>
 
         # magic_enum
         <magic_enum/magic_enum.hpp>
-
-        # LLVM
-        <llvm/IR/IRBuilder.h>
-        <llvm/IR/LLVMContext.h>
-        <llvm/IR/Module.h>
-        <llvm/IR/Value.h>
-        <llvm/IR/Verifier.h>
 
         # Our headers
         "src/Utility/Attributes.hpp"
@@ -61,8 +85,15 @@ target_precompile_headers(Compiler PRIVATE
         "src/Common.hpp"
 )
 
+if (WIN32)
+    execute_process(
+            COMMAND mkdir -p "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional"
+            COMMAND cp -rv "C:/Program Files/Microsoft Visual Studio/2022/Enterprise/DIA SDK" "C:/Program Files (x86)/Microsoft Visual Studio/2019/Professional/DIA SDK"
+    )
+endif ()
+
 # Link against necessary LLVM libraries
-llvm_map_components_to_libnames(llvm_libs Core Support IRReader)
+llvm_map_components_to_libnames(llvm_libs core support irreader target)
 
 # Link all external libraries
 target_link_libraries(Compiler ${llvm_libs} magic_enum::magic_enum)

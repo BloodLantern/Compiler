@@ -372,7 +372,7 @@ std::shared_ptr<Ast::Expression> Parser::ParseOperationRhs(const s32 expressionP
     }
 }
 
-std::shared_ptr<Ast::TypeName> Parser::ParseType()
+std::shared_ptr<Ast::Type> Parser::ParseType()
 {
     const Token& token = GetCurrentToken();
 
@@ -387,23 +387,23 @@ std::shared_ptr<Ast::TypeName> Parser::ParseType()
         {
             auto keyword = std::get<Keyword>(token.value.value());
             if (!KeywordIsType(keyword))
-                return RaiseError<Ast::TypeName>("Expected a type keyword, got {}", keyword);
+                return RaiseError<Ast::Type>("Expected a type keyword, got {}", keyword);
             type = KeywordToBuiltinType(keyword);
             break;
         }
 
         default:
-            return RaiseError<Ast::TypeName>("Expected either an identifier or a keyword for the type name, got {}", token.type);
+            return RaiseError<Ast::Type>("Expected either an identifier or a keyword for the type name, got {}", token.type);
     }
 
     SkipTokens(1);
 
-    return std::make_shared<Ast::TypeName>(type);
+    return std::make_shared<Ast::Type>(type);
 }
 
 std::shared_ptr<Ast::TypeIdentifierPair> Parser::ParseTypeIdentifierPair()
 {
-    std::shared_ptr<Ast::TypeName> type = ParseType();
+    std::shared_ptr<Ast::Type> type = ParseType();
     RETURN_IF_NULL(type);
 
     const Token& name = GetCurrentToken();

@@ -50,7 +50,7 @@ int main()
     std::println("Compilation took {} ms",
                  std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
 
-    int lliResult = Utils::SystemCommand("lli {}", IrOut);
+    /*int lliResult = Utils::SystemCommand("lli {}", IrOut);
     if (lliResult == 1)
     {
         std::println(std::cerr, "An error occurred during JIT compilation: lli exited with code {}", lliResult);
@@ -63,5 +63,46 @@ int main()
     {
         std::println(std::cerr, "An error occurred during static compilation: llc exited with code {}", llcResult);
         Utils::Exit(ErrorCodes::FatalError);
+    }*/
+
+    llvm::Triple targetTriple{llvm::sys::getDefaultTargetTriple()};
+    std::string errorMessage;
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, errorMessage);
+    if (!target)
+    {
+        std::println(std::cerr, "Could not find target for triple {}: {}", targetTriple.getOSAndEnvironmentName(), errorMessage);
+        Utils::Exit(ErrorCodes::FatalError);
     }
+
+    const c8* cpu = "generic";
+    const c8* features = "";
+
+    llvm::TargetOptions opt;
+    auto targetMachine = target->createTargetMachine(targetTriple, cpu, features, opt, llvm::Reloc::PIC_);
+
+    theModule->setDataLayout(targetMachine->createDataLayout());
+    theModule->setTargetTriple(targetTriple);
+
+    auto filepath = inputFile.GetFilepath();
+    auto filename = filepath.replace_extension("o").generic_string();
+    std::error_code errorCode;
+    llvm::raw_fd_ostream dest{filename, errorCode, llvm::sys::fs::OF_None};
+
+    if (errorCode)
+    {
+        std::println(std::cerr, "Could not open file: {}", errorCode.message());
+        Utils::Exit(ErrorCodes::FatalError);
+    }
+
+    llvm::legacy::PassManager pass;
+    auto FileType = llvm::CodeGenFileType::ObjectFile;
+
+    if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType))
+    {
+        std::println(std::cerr, "TargetMachine can't emit a file of this type");
+        Utils::Exit(ErrorCodes::FatalError);
+    }
+
+    pass.run(*theModule);
+    dest.flush();
 }

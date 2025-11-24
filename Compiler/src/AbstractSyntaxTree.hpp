@@ -12,19 +12,23 @@ namespace Ast
 
     inline std::shared_ptr<Scope> currentScope;
 
-    llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Function* function, llvm::StringRef variableName);
+    llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Function* function, llvm::Type* type, llvm::StringRef variableName);
 
     /// @brief Helper class that represents a type name, i.e., either a builtin type such as @c int or a user-defined type.
-    class TypeName
+    class Type
     {
     public:
-        explicit TypeName(std::variant<std::string, BuiltinType> type);
+        explicit Type(std::variant<std::string, BuiltinType> type);
 
         ATTRIBUTE_NODISCARD
         llvm::Type* GetLlvmType() const;
 
         ATTRIBUTE_NODISCARD
-        std::string_view GetType() const;
+        std::string_view GetTypeName() const;
+        ATTRIBUTE_NODISCARD
+        BuiltinType GetBuiltinType() const;
+        ATTRIBUTE_NODISCARD
+        bool IsBuiltinType() const;
 
     private:
         std::variant<std::string, BuiltinType> m_Type;
@@ -34,13 +38,13 @@ namespace Ast
     class TypeIdentifierPair
     {
     public:
-        explicit TypeIdentifierPair(std::shared_ptr<TypeName> type, std::string name);
+        explicit TypeIdentifierPair(std::shared_ptr<Type> type, std::string name);
 
-        GETTER_M(const std::shared_ptr<TypeName>&, Type)
+        GETTER_M(const std::shared_ptr<Type>&, Type)
         GETTER_M(const std::string&, Name)
 
     private:
-        std::shared_ptr<TypeName> m_Type;
+        std::shared_ptr<Type> m_Type;
         std::string m_Name;
     };
 
