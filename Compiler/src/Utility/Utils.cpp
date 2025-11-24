@@ -7,7 +7,7 @@ void Utils::Exit(ErrorCodes code)
 
     std::println("Exiting early with code {0:d} ({0})", code);
 
-    exit(static_cast<i32>(code));  // NOLINT(concurrency-mt-unsafe)
+    exit(static_cast<s32>(code));  // NOLINT(concurrency-mt-unsafe)
 }
 
 std::string Utils::FormatFileLink(const std::filesystem::path& filepath, const Position& position)

@@ -388,7 +388,7 @@ namespace Ast
     template <std::integral NumberType>
     llvm::Value* LiteralNumber<NumberType>::GenerateCode() const
     {
-        if constexpr (std::is_same_v<NumberType, i32>)
+        if constexpr (std::is_same_v<NumberType, s32>)
             return llvm::ConstantInt::get(*llvmContext, llvm::APInt(32, m_Value, true));
         else
             static_assert(false, "Unhandled numeric type");

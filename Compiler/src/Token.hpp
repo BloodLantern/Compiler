@@ -164,7 +164,7 @@ constexpr std::array SimpleTokenList
     std::make_pair(":", TokenType::Colon),
 };
 
-using TokenValue = std::variant<std::string, i32, c8, Keyword>;
+using TokenValue = std::variant<std::string, s32, c8, Keyword>;
 
 struct Token
 {
