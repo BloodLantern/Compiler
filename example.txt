@@ -1,7 +1,6 @@
 
 s32 putchar(s32 ch);
 void exit(s32 ch);
-s32 MessageBoxA(u64 handle, u64 text, u64 title, u32 type);
 
 s32 Sub(s32 a, s32 b) => a - b;
 
@@ -17,7 +16,6 @@ void Func2(s32 param)
 
 s32 main()
 {
-    MessageBoxA(0, 0, 0, 0);
     for (s32 k = 0; k < 10; k++)
         Func2(k);
     putchar(10);

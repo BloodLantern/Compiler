@@ -50,7 +50,7 @@ int main()
     std::println("Compilation took {} ms",
                  std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start).count());
 
-    /*int lliResult = Utils::SystemCommand("lli {}", IrOut);
+    int lliResult = Utils::SystemCommand("lli {}", IrOut);
     if (lliResult == 1)
     {
         std::println(std::cerr, "An error occurred during JIT compilation: lli exited with code {}", lliResult);
@@ -63,7 +63,13 @@ int main()
     {
         std::println(std::cerr, "An error occurred during static compilation: llc exited with code {}", llcResult);
         Utils::Exit(ErrorCodes::FatalError);
-    }*/
+    }
+
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
 
     llvm::Triple targetTriple{llvm::sys::getDefaultTargetTriple()};
     std::string errorMessage;
@@ -105,4 +111,7 @@ int main()
 
     pass.run(*theModule);
     dest.flush();
+
+    // TODO - "%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere" -latest -property installationPath
+    // TODO - link /DEFAULTLIB:msvcrt.lib example.o
 }

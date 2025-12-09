@@ -3,7 +3,7 @@ find_package(LLVM REQUIRED CONFIG)
 find_package(magic_enum REQUIRED CONFIG)
 
 # Add executable target
-add_executable (Compiler
+add_executable(Compiler
         src/AbstractSyntaxTree.hpp
         src/AbstractSyntaxTree.cpp
         src/Utility/Attributes.hpp
@@ -93,7 +93,145 @@ if (WIN32)
 endif ()
 
 # Link against necessary LLVM libraries
-llvm_map_components_to_libnames(llvm_libs core support irreader target)
+llvm_map_components_to_libnames(llvm_libs
+        XRay
+        AArch64AsmParser
+        AArch64CodeGen
+        AArch64Desc
+        AArch64Disassembler
+        AArch64Info
+        AArch64Utils
+        AggressiveInstCombine
+        Analysis
+        ARMAsmParser
+        ARMCodeGen
+        ARMDesc
+        ARMDisassembler
+        ARMInfo
+        ARMUtils
+        AsmParser
+        AsmPrinter
+        BinaryFormat
+        BitReader
+        BitstreamReader
+        BitWriter
+        BPFAsmParser
+        BPFCodeGen
+        BPFDesc
+        BPFDisassembler
+        BPFInfo
+        CFGuard
+        CFIVerify
+        CGData
+        CodeGen
+        CodeGenTypes
+        Core
+        Coroutines
+        Coverage
+        DebugInfoBTF
+        DebugInfoCodeView
+        Debuginfod
+        DebugInfoDWARF
+        DebugInfoDWARFLowLevel
+        DebugInfoGSYM
+        DebugInfoLogicalView
+        DebugInfoMSF
+        DebugInfoPDB
+        Demangle
+        Diff
+        DlltoolDriver
+        DWARFCFIChecker
+        DWARFLinker
+        DWARFLinkerClassic
+        DWARFLinkerParallel
+        DWP
+        ExecutionEngine
+        Exegesis
+        ExegesisAArch64
+        ExegesisRISCV
+        ExegesisX86
+        Extensions
+        FileCheck
+        FrontendAtomic
+        FrontendDirective
+        FrontendDriver
+        FrontendHLSL
+        FrontendOffloading
+        FrontendOpenACC
+        FrontendOpenMP
+        FuzzerCLI
+        FuzzMutate
+        GlobalISel
+        HipStdPar
+        InstCombine
+        Instrumentation
+        InterfaceStub
+        Interpreter
+        ipo
+        IRPrinter
+        IRReader
+        JITLink
+        LibDriver
+        LineEditor
+        Linker
+        LTO
+        MC
+        MCA
+        MCDisassembler
+        MCJIT
+        MCParser
+        MIRParser
+        NVPTXCodeGen
+        NVPTXDesc
+        NVPTXInfo
+        ObjCARCOpts
+        ObjCopy
+        Object
+        ObjectYAML
+        OptDriver
+        Option
+        OrcDebugging
+        OrcJIT
+        OrcShared
+        OrcTargetProcess
+        Passes
+        ProfileData
+        Remarks
+        RISCVAsmParser
+        RISCVCodeGen
+        RISCVDesc
+        RISCVDisassembler
+        RISCVInfo
+        RISCVTargetMCA
+        RuntimeDyld
+        SandboxIR
+        ScalarOpts
+        SelectionDAG
+        Support
+        Symbolize
+        TableGen
+        TableGenBasic
+        TableGenCommon
+        Target
+        TargetParser
+        Telemetry
+        TextAPI
+        TextAPIBinaryReader
+        TransformUtils
+        Vectorize
+        WebAssemblyAsmParser
+        WebAssemblyCodeGen
+        WebAssemblyDesc
+        WebAssemblyDisassembler
+        WebAssemblyInfo
+        WebAssemblyUtils
+        WindowsDriver
+        X86AsmParser
+        X86CodeGen
+        X86Desc
+        X86Disassembler
+        X86Info
+        X86TargetMCA)
 
 # Link all external libraries
 target_link_libraries(Compiler ${llvm_libs} magic_enum::magic_enum)
