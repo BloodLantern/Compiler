@@ -73,7 +73,7 @@ int main()
 
     llvm::Triple targetTriple{llvm::sys::getDefaultTargetTriple()};
     std::string errorMessage;
-    auto target = llvm::TargetRegistry::lookupTarget(targetTriple, errorMessage);
+    auto target = llvm::TargetRegistry::lookupTarget(targetTriple.str(), errorMessage);
     if (!target)
     {
         std::println(std::cerr, "Could not find target for triple {}: {}", targetTriple.getOSAndEnvironmentName(), errorMessage);
